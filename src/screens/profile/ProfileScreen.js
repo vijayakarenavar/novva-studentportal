@@ -17,7 +17,6 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 
-// ─── COLORS ──────────────────────────────────────────────────────────────────
 const C = {
   primary: "#1a4b6d",
   primaryDark: "#0f3a4a",
@@ -26,14 +25,13 @@ const C = {
   warning: "#f59e0b",
   white: "#ffffff",
   bg: "#f0f4f8",
-  card: "#ffffff",
   border: "#e2e8f0",
+  borderLight: "#f0f4f8",
   textPrimary: "#1e293b",
   textSecondary: "#64748b",
   textMuted: "#94a3b8",
 };
 
-// ─── TABS CONFIG ─────────────────────────────────────────────────────────────
 const TABS = [
   { id: "personal", icon: "👤", label: "Personal" },
   { id: "parent", icon: "👨‍👩‍👧", label: "Parents" },
@@ -65,13 +63,7 @@ export default function ProfileScreen() {
     try {
       setError(null);
       const res = await api.get("/students/my-profile");
-
-      console.log("PROFILE RESPONSE STATUS:", res.status);
-      console.log("PROFILE DATA KEYS:", Object.keys(res.data || {}));
       const profileData = res.data?.data || res.data;
-      console.log("PROFILE DATA KEYS (inner):", Object.keys(profileData || {}));
-      console.log("HAS STUDENT?", !!profileData?.student);
-
       if (!profileData?.student) throw new Error("Invalid profile response");
       setProfile(profileData);
       setDocumentConfig(
@@ -85,13 +77,8 @@ export default function ProfileScreen() {
         useNativeDriver: true,
       }).start();
     } catch (err) {
-      console.log("PROFILE ERROR STATUS:", err.response?.status);
-      console.log("PROFILE ERROR DATA:", JSON.stringify(err.response?.data));
-      console.log("PROFILE ERROR MSG:", err.message);
-
       const status = err.response?.status;
       let msg = "Failed to load profile.";
-
       if (status === 401) msg = "Session expired. Please login again.";
       else if (status === 403) msg = "Access denied.";
       else if (status === 404) msg = "Profile not found. Contact admin.";
@@ -103,7 +90,6 @@ export default function ProfileScreen() {
           err.response?.data?.message ||
           err.message ||
           "Failed to load profile.";
-
       setError(msg);
     } finally {
       setLoading(false);
@@ -118,11 +104,9 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     if (Platform.OS === "web") {
-      // Web साठी
       const confirmed = window.confirm("Are you sure you want to logout?");
       if (confirmed) logout();
     } else {
-      // Mobile साठी
       Alert.alert("Logout", "Are you sure you want to logout?", [
         { text: "Cancel", style: "cancel" },
         {
@@ -140,7 +124,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={s.loadingContainer}>
-        <Text style={s.loadingEmoji}>👤</Text>
+        <Text style={{ fontSize: 52 }}>👤</Text>
         <ActivityIndicator
           size="large"
           color={C.primary}
@@ -154,7 +138,7 @@ export default function ProfileScreen() {
   if (error) {
     return (
       <View style={s.errorContainer}>
-        <Text style={s.errorEmoji}>⚠️</Text>
+        <Text style={{ fontSize: 52, marginBottom: 12 }}>⚠️</Text>
         <Text style={s.errorTitle}>Failed to Load Profile</Text>
         <Text style={s.errorMsg}>{error}</Text>
         <TouchableOpacity
@@ -187,51 +171,75 @@ export default function ProfileScreen() {
     return true;
   });
 
+  const initials = (student?.fullName || "S")[0].toUpperCase();
+
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
 
-      {/* ── HEADER ── */}
-      <View style={s.header}>
-        <View style={s.headerTop}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={s.backBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={s.backBtnText}>←</Text>
-          </TouchableOpacity>
+      {/* ── TOP APP BAR (HomeScreen / Timetable style) ── */}
+      <View style={s.topBar}>
+        <TouchableOpacity
+          style={s.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+        >
+          <Text style={s.backBtnText}>←</Text>
+        </TouchableOpacity>
+        <Text style={s.topBarTitle} numberOfLines={1}>
+          My Profile
+        </Text>
+        <TouchableOpacity
+          style={s.editBtn}
+          onPress={() => navigation.navigate("EditProfile")}
+          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+        >
+          <Text style={s.editBtnText}>✏️</Text>
+        </TouchableOpacity>
+      </View>
 
-          <Text style={s.headerTitle}>My Profile</Text>
+      {/* ── SCROLL ── */}
+      <Animated.ScrollView
+        style={[s.scroll, { opacity: fadeAnim }]}
+        contentContainerStyle={s.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[C.primary]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── NAVY WELCOME CARD (HomeScreen / Timetable style) ── */}
+        <View style={s.welcomeCard}>
+          {/* Decorative circles */}
+          <View style={s.circleTop} />
+          <View style={s.circleBottom} />
 
-          {/* Edit + Logout Buttons */}
-          <View style={s.headerActions}>
-            <TouchableOpacity
-              style={s.editBtn}
-              onPress={() => navigation.navigate("EditProfile")}
-            >
-              <Text style={s.editBtnText}>✏️ Edit</Text>
-            </TouchableOpacity>
+          <View style={s.welcomeRow}>
+            {/* Avatar */}
+            <View style={s.welcomeAvatar}>
+              <Text style={s.welcomeAvatarText}>{initials}</Text>
+            </View>
 
-            <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
-              <Text style={s.logoutBtnText}>🚪 Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            {/* Info */}
+            <View style={s.welcomeInfo}>
+              <Text style={s.welcomeLabel}>MY PROFILE</Text>
+              <Text style={s.welcomeName} numberOfLines={1}>
+                {student?.fullName || user?.name || "Student"}
+              </Text>
+              {(course?.name || department?.name) && (
+                <Text style={s.welcomeSub} numberOfLines={1}>
+                  {course?.name || ""}
+                  {course?.name && department?.name ? " • " : ""}
+                  {department?.name || ""}
+                </Text>
+              )}
+            </View>
 
-        {/* Profile Card in Header */}
-        <View style={s.profileCard}>
-          <View style={s.avatarCircle}>
-            <Text style={s.avatarText}>
-              {(student?.fullName || "S")[0].toUpperCase()}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.profileName}>{student?.fullName || "N/A"}</Text>
-            <Text style={s.profileSub} numberOfLines={1}>
-              {course?.name || "N/A"} • {department?.name || "N/A"}
-            </Text>
-            <View style={s.profileBadges}>
+            {/* Status + Semester badges (right side) */}
+            <View style={s.badgeStack}>
               <View style={[s.statusBadge, { backgroundColor: statusColor }]}>
                 <Text style={s.statusBadgeText}>
                   {student?.status || "PENDING"}
@@ -246,58 +254,49 @@ export default function ProfileScreen() {
               )}
             </View>
           </View>
+
+          {/* Quick info chips */}
+          <View style={s.quickInfoRow}>
+            {student?.email && (
+              <View style={s.quickInfoChip}>
+                <Text style={s.quickInfoText} numberOfLines={1}>
+                  ✉️ {student.email}
+                </Text>
+              </View>
+            )}
+            {student?.mobileNumber && (
+              <View style={s.quickInfoChip}>
+                <Text style={s.quickInfoText}>📞 {student.mobileNumber}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Quick Info */}
-        <View style={s.quickInfo}>
-          {student?.email && (
-            <Text style={s.quickInfoText} numberOfLines={1}>
-              ✉️ {student.email}
-            </Text>
-          )}
-          {student?.mobileNumber && (
-            <Text style={s.quickInfoText}>📞 {student.mobileNumber}</Text>
-          )}
-        </View>
-      </View>
-
-      {/* ── TAB BAR ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.tabBar}
-        contentContainerStyle={s.tabBarContent}
-      >
-        {visibleTabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[s.tab, activeTab === tab.id && s.tabActive]}
-            onPress={() => setActiveTab(tab.id)}
-          >
-            <Text style={s.tabIcon}>{tab.icon}</Text>
-            <Text
-              style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}
+        {/* ── TAB BAR (inside scroll for consistency) ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.tabBar}
+          contentContainerStyle={s.tabBarContent}
+        >
+          {visibleTabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[s.tab, activeTab === tab.id && s.tabActive]}
+              onPress={() => setActiveTab(tab.id)}
             >
-              {tab.label}
-            </Text>
-            {activeTab === tab.id && <View style={s.tabIndicator} />}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text style={s.tabIcon}>{tab.icon}</Text>
+              <Text
+                style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}
+              >
+                {tab.label}
+              </Text>
+              {activeTab === tab.id && <View style={s.tabIndicator} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      {/* ── CONTENT ── */}
-      <Animated.ScrollView
-        style={[s.scroll, { opacity: fadeAnim }]}
-        contentContainerStyle={s.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[C.primary]}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+        {/* ── TAB CONTENT ── */}
         {activeTab === "personal" && (
           <Section title="Personal Information" icon="👤">
             <InfoRow label="Full Name" value={student?.fullName} icon="👤" />
@@ -554,7 +553,7 @@ export default function ProfileScreen() {
           </Section>
         )}
 
-        {/* ── LOGOUT BUTTON (Bottom) ── */}
+        {/* Logout Bottom Button */}
         <TouchableOpacity style={s.logoutBottomBtn} onPress={handleLogout}>
           <Text style={s.logoutBottomBtnText}>🚪 Logout</Text>
         </TouchableOpacity>
@@ -563,12 +562,14 @@ export default function ProfileScreen() {
   );
 }
 
-// ─── SECTION ────────────────────────────────────────────────────────────────
+// ─── SECTION ─────────────────────────────────────────────────────────────────
 function Section({ title, icon, children }) {
   return (
     <View style={sec.card}>
       <View style={sec.header}>
-        <Text style={sec.icon}>{icon}</Text>
+        <View style={sec.iconWrap}>
+          <Text style={{ fontSize: 16 }}>{icon}</Text>
+        </View>
         <Text style={sec.title}>{title}</Text>
       </View>
       {children}
@@ -578,8 +579,10 @@ function Section({ title, icon, children }) {
 const sec = StyleSheet.create({
   card: {
     backgroundColor: C.white,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
+    borderWidth: 0.5,
+    borderColor: C.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
@@ -589,21 +592,30 @@ const sec = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 14,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: C.borderLight,
   },
-  icon: { fontSize: 20 },
-  title: { fontSize: 16, fontWeight: "700", color: C.textPrimary },
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#e3f2fd",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: { fontSize: 15, fontWeight: "700", color: C.primary },
 });
 
-// ─── INFO ROW ────────────────────────────────────────────────────────────────
+// ─── INFO ROW ─────────────────────────────────────────────────────────────────
 function InfoRow({ label, value, icon, full }) {
   return (
-    <View style={[ir.row, full && ir.rowFull]}>
-      <Text style={ir.icon}>{icon}</Text>
+    <View style={ir.row}>
+      <View style={ir.iconWrap}>
+        <Text style={{ fontSize: 14 }}>{icon}</Text>
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={ir.label}>{label}</Text>
         <Text style={ir.value}>{value || "N/A"}</Text>
@@ -620,11 +632,18 @@ const ir = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
-  rowFull: {},
-  icon: { fontSize: 16, marginTop: 2 },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#f8fafc",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 2,
+  },
   label: {
-    fontSize: 11,
-    color: C.textSecondary,
+    fontSize: 10,
+    color: C.textMuted,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -633,7 +652,7 @@ const ir = StyleSheet.create({
   value: { fontSize: 14, color: C.textPrimary, fontWeight: "500" },
 });
 
-// ─── DOC CARD ────────────────────────────────────────────────────────────────
+// ─── DOC CARD ─────────────────────────────────────────────────────────────────
 function DocCard({ icon, type, name, board, year, percentage, filePath }) {
   const hasFile =
     filePath && String(filePath).trim() !== "" && filePath !== "null";
@@ -655,7 +674,7 @@ function DocCard({ icon, type, name, board, year, percentage, filePath }) {
     <View style={dc.card}>
       <View style={dc.topRow}>
         <View style={dc.iconBox}>
-          <Text style={dc.iconText}>{icon}</Text>
+          <Text style={{ fontSize: 22 }}>{icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={dc.type}>{type}</Text>
@@ -663,10 +682,19 @@ function DocCard({ icon, type, name, board, year, percentage, filePath }) {
         </View>
         <View
           style={[
-            dc.statusDot,
-            { backgroundColor: hasFile ? C.success : C.danger },
+            dc.statusPill,
+            { backgroundColor: hasFile ? "#dcfce7" : "#fee2e2" },
           ]}
-        />
+        >
+          <Text
+            style={[
+              dc.statusPillText,
+              { color: hasFile ? C.success : C.danger },
+            ]}
+          >
+            {hasFile ? "✓ Uploaded" : "✗ Missing"}
+          </Text>
+        </View>
       </View>
       {(board || year || percentage) && (
         <View style={dc.metaRow}>
@@ -694,7 +722,7 @@ function DocCard({ icon, type, name, board, year, percentage, filePath }) {
 const dc = StyleSheet.create({
   card: {
     backgroundColor: "#f8fafc",
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: C.border,
     padding: 12,
@@ -709,27 +737,32 @@ const dc = StyleSheet.create({
   iconBox: {
     width: 44,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: "#e3f2fd",
     justifyContent: "center",
     alignItems: "center",
   },
-  iconText: { fontSize: 22 },
   type: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: C.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   name: { fontSize: 13, color: C.textPrimary, fontWeight: "500", marginTop: 2 },
-  statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  statusPill: {
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: "flex-start",
+  },
+  statusPillText: { fontSize: 10, fontWeight: "700" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 },
   meta: { fontSize: 11, color: C.textSecondary },
   viewBtn: {
     backgroundColor: C.primary,
-    borderRadius: 8,
-    paddingVertical: 9,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: "center",
   },
   viewBtnText: { color: C.white, fontSize: 13, fontWeight: "600" },
@@ -738,14 +771,15 @@ const dc = StyleSheet.create({
 // ─── MAIN STYLES ─────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: C.bg,
   },
-  loadingEmoji: { fontSize: 52 },
   loadingText: { marginTop: 12, fontSize: 15, color: C.textSecondary },
+
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -753,7 +787,6 @@ const s = StyleSheet.create({
     backgroundColor: C.bg,
     padding: 24,
   },
-  errorEmoji: { fontSize: 52, marginBottom: 12 },
   errorTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -774,103 +807,172 @@ const s = StyleSheet.create({
   },
   retryBtnText: { color: C.white, fontWeight: "700", fontSize: 14 },
 
-  // ── HEADER ──
-  header: {
-    backgroundColor: C.primaryDark,
+  // ── TOP APP BAR (same as HomeScreen / Timetable) ──
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: C.white,
+    paddingHorizontal: 14,
     paddingTop:
       Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.bg,
+    borderWidth: 0.5,
+    borderColor: C.border,
     justifyContent: "center",
     alignItems: "center",
   },
   backBtnText: {
-    color: C.white,
-    fontSize: 22,
+    color: C.primary,
+    fontSize: 20,
     fontWeight: "700",
-    lineHeight: 26,
+    lineHeight: 24,
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: C.white },
-
-  // Edit + Logout side by side
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  topBarTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: C.primary,
+    flex: 1,
+    textAlign: "center",
   },
   editBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  editBtnText: { color: C.white, fontSize: 13, fontWeight: "600" },
-  logoutBtn: {
-    backgroundColor: "rgba(220,38,38,0.25)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  logoutBtnText: { color: "#ff9999", fontSize: 13, fontWeight: "600" },
-
-  // ── PROFILE CARD ──
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 12,
-  },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: C.white,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.bg,
+    borderWidth: 0.5,
+    borderColor: C.border,
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 28, fontWeight: "700", color: C.primary },
-  profileName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: C.white,
+  editBtnText: { fontSize: 16 },
+
+  // ── SCROLL ──
+  scroll: { flex: 1 },
+  scrollContent: { padding: 14, gap: 12, paddingBottom: 32 },
+
+  // ── NAVY WELCOME CARD (same pattern as HomeScreen / Timetable) ──
+  welcomeCard: {
+    backgroundColor: C.primary,
+    borderRadius: 16,
+    padding: 16,
+    overflow: "hidden",
+    position: "relative",
     marginBottom: 2,
   },
-  profileSub: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.75)",
-    marginBottom: 6,
+  circleTop: {
+    position: "absolute",
+    top: -35,
+    right: -35,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
-  profileBadges: { flexDirection: "row", gap: 6 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  circleBottom: {
+    position: "absolute",
+    bottom: -25,
+    left: 30,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  welcomeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  welcomeAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: C.white,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+    flexShrink: 0,
+  },
+  welcomeAvatarText: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: C.primary,
+  },
+  welcomeInfo: { flex: 1 },
+  welcomeLabel: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.6)",
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  welcomeName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.white,
+    marginBottom: 3,
+  },
+  welcomeSub: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.65)",
+  },
+  badgeStack: {
+    alignItems: "flex-end",
+    gap: 5,
+    flexShrink: 0,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
   statusBadgeText: { color: C.white, fontSize: 10, fontWeight: "700" },
   semBadge: {
     backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   semBadgeText: { color: C.white, fontSize: 10, fontWeight: "600" },
-  quickInfo: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  quickInfoText: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+  quickInfoRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  quickInfoChip: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  quickInfoText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+  },
 
   // ── TAB BAR ──
   tabBar: {
     backgroundColor: C.white,
     maxHeight: 64,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderRadius: 14,
+    borderWidth: 0.5,
+    borderColor: C.border,
   },
   tabBarContent: { paddingHorizontal: 8, alignItems: "center" },
   tab: {
@@ -894,11 +996,7 @@ const s = StyleSheet.create({
     borderRadius: 1,
   },
 
-  // ── SCROLL ──
-  scroll: { flex: 1 },
-  scrollContent: { padding: 14, gap: 12, paddingBottom: 32 },
-
-  // ── DOCUMENTS ──
+  // ── DOCS ──
   docSubtitle: {
     fontSize: 13,
     color: C.textSecondary,
@@ -926,21 +1024,16 @@ const s = StyleSheet.create({
   },
   docGuidelinesItem: { fontSize: 12, color: C.textSecondary, marginBottom: 3 },
 
-  // ── LOGOUT BOTTOM BUTTON ──
+  // ── LOGOUT ──
   logoutBottomBtn: {
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 16,
-    marginHorizontal: 0,
     backgroundColor: "#fee2e2",
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#fecaca",
   },
-  logoutBottomBtnText: {
-    color: C.danger,
-    fontSize: 15,
-    fontWeight: "700",
-  },
+  logoutBottomBtnText: { color: C.danger, fontSize: 15, fontWeight: "700" },
 });

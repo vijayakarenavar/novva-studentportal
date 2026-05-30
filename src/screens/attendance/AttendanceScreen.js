@@ -13,6 +13,14 @@ import {
 import api from "../../services/api";
 import { COLORS, SIZES, SHADOWS } from "../../constants/theme";
 
+const C = {
+  primary: "#1a4b6d",
+  primaryDark: "#0f3a4a",
+  white: "#ffffff",
+  bg: "#f0f4f8",
+  border: "#e2e8f0",
+};
+
 const AttendanceScreen = ({ navigation }) => {
   const [attendanceData, setAttendanceData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +33,6 @@ const AttendanceScreen = ({ navigation }) => {
   const fetchAttendance = async () => {
     try {
       const res = await api.get("/dashboard/student");
-      // ✅ Fix: unwrap nested data
       const dashData = res.data?.data || res.data;
       setAttendanceData({
         summary: dashData?.attendanceSummary || {
@@ -81,19 +88,22 @@ const AttendanceScreen = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#0f3a4a" />
+      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
 
-      {/* ── TOP BAR ── */}
+      {/* ── NAVY APP BAR ── */}
       <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.topBarTitle}>📊 My Attendance</Text>
-          <Text style={styles.topBarSub}>Track your attendance record</Text>
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
+        <View style={styles.topBarRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          >
+            <Text style={styles.backBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>My Attendance</Text>
+          <View style={{ width: 36 }} />
         </View>
       </View>
 
@@ -119,7 +129,6 @@ const AttendanceScreen = ({ navigation }) => {
             <Text style={styles.summaryValue}>{summary.present || 0}</Text>
             <Text style={styles.summaryLabel}>Present</Text>
           </View>
-
           <View style={[styles.summaryCard, { borderTopColor: COLORS.danger }]}>
             <View style={[styles.summaryIcon, { backgroundColor: "#f8d7da" }]}>
               <Text style={styles.summaryIconText}>❌</Text>
@@ -127,7 +136,6 @@ const AttendanceScreen = ({ navigation }) => {
             <Text style={styles.summaryValue}>{summary.absent || 0}</Text>
             <Text style={styles.summaryLabel}>Absent</Text>
           </View>
-
           <View
             style={[styles.summaryCard, { borderTopColor: COLORS.primary }]}
           >
@@ -169,7 +177,6 @@ const AttendanceScreen = ({ navigation }) => {
             </Text>
             <Text style={styles.markerText}>100%</Text>
           </View>
-
           {summary.warning && (
             <View style={styles.warningBox}>
               <Text style={styles.warningText}>
@@ -185,7 +192,6 @@ const AttendanceScreen = ({ navigation }) => {
             <Text style={styles.sectionIcon}>📚</Text>
             <Text style={styles.sectionTitle}>Subject-wise Attendance</Text>
           </View>
-
           {subjects.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyIcon}>📊</Text>
@@ -230,7 +236,6 @@ const AttendanceScreen = ({ navigation }) => {
                       </Text>
                     </View>
                   </View>
-
                   <View style={styles.subjectProgressBg}>
                     <View
                       style={[
@@ -244,7 +249,6 @@ const AttendanceScreen = ({ navigation }) => {
                       ]}
                     />
                   </View>
-
                   <View style={styles.subjectStatsRow}>
                     <Text style={styles.subjectStat}>
                       ✅ {subject.present || 0} Present
@@ -258,7 +262,6 @@ const AttendanceScreen = ({ navigation }) => {
                       ❌ {subject.absent || 0} Absent
                     </Text>
                   </View>
-
                   {(subject.percentage || 0) < 75 && (
                     <View style={styles.attentionBadge}>
                       <Text style={styles.attentionText}>
@@ -287,16 +290,42 @@ const styles = StyleSheet.create({
   },
   loadingText: { marginTop: 12, color: COLORS.textSecondary, fontSize: 14 },
 
-  // TOP BAR
+  /* ── NAVY APP BAR ── */
   topBar: {
-    backgroundColor: "#0f3a4a",
+    backgroundColor: C.primary,
     paddingTop:
-      Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
-    paddingBottom: 16,
+      Platform.OS === "ios" ? 44 : (StatusBar.currentHeight || 24) + 6,
     paddingHorizontal: 16,
+    paddingBottom: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 20,
+    marginHorizontal: 8,
+    marginTop: Platform.OS === "ios" ? 8 : (StatusBar.currentHeight || 24) - 10,
+    marginBottom: 8,
+  },
+  circle1: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  circle2: {
+    position: "absolute",
+    bottom: -20,
+    left: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  topBarRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    justifyContent: "space-between",
   },
   backBtn: {
     width: 36,
@@ -307,17 +336,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backBtnText: {
-    color: "#fff",
+    color: C.white,
     fontSize: 22,
     fontWeight: "700",
     lineHeight: 26,
   },
-  topBarTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  topBarSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  topBarTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.white,
+    flex: 1,
+    textAlign: "center",
+  },
 
   scrollContent: { padding: 16, paddingBottom: 24 },
 
-  // SUMMARY CARDS
   summaryRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   summaryCard: {
     flex: 1,
@@ -348,7 +381,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // OVERALL CARD
   overallCard: {
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radiusLg,
@@ -405,7 +437,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // SECTION CARD
   sectionCard: {
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radiusLg,
@@ -427,7 +458,6 @@ const styles = StyleSheet.create({
   sectionIcon: { fontSize: 18 },
   sectionTitle: { fontSize: 15, fontWeight: "700", color: COLORS.primary },
 
-  // SUBJECT ITEM
   subjectItem: {
     padding: 16,
     borderBottomWidth: 1,
@@ -469,10 +499,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subjectProgressFill: { height: "100%", borderRadius: 4 },
-  subjectStatsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  subjectStatsRow: { flexDirection: "row", justifyContent: "space-between" },
   subjectStat: { fontSize: 12, color: COLORS.textSecondary, fontWeight: "500" },
   attentionBadge: {
     backgroundColor: "#f8d7da",
@@ -483,7 +510,6 @@ const styles = StyleSheet.create({
   },
   attentionText: { fontSize: 11, color: COLORS.danger, fontWeight: "700" },
 
-  // EMPTY
   emptyBox: {
     alignItems: "center",
     paddingVertical: 40,

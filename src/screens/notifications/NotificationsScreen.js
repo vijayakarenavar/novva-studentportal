@@ -8,10 +8,19 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Platform,
+  StatusBar,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import api from "../../services/api";
 
-// ── Type config ───────────────────────────────────────────────────────────────
+const C = {
+  primary: "#1a4b6d",
+  primaryDark: "#0f3a4a",
+  white: "#ffffff",
+  bg: "#f0f4f8",
+  border: "#e2e8f0",
+};
+
 const TYPE_CONFIG = {
   GENERAL: { icon: "ℹ️", label: "General", color: "#3b82f6", bg: "#dbeafe" },
   ACADEMIC: { icon: "🎓", label: "Academic", color: "#8b5cf6", bg: "#ede9fe" },
@@ -41,7 +50,6 @@ const PRIORITY_CONFIG = {
   URGENT: { color: "#dc2626", bg: "#fecaca", label: "Urgent" },
 };
 
-// ── Format date ───────────────────────────────────────────────────────────────
 const formatDate = (dateString) => {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -49,7 +57,6 @@ const formatDate = (dateString) => {
   const diff = now - date;
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
-
   if (hours < 1) return "Just now";
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
@@ -60,7 +67,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// ── Single Notification Card ──────────────────────────────────────────────────
 const NotifCard = ({ note }) => {
   const [expanded, setExpanded] = useState(false);
   const type = note.type || "GENERAL";
@@ -80,18 +86,14 @@ const NotifCard = ({ note }) => {
         isExpired && styles.expiredCard,
       ]}
     >
-      {/* Top color bar */}
       <View
         style={[
           styles.cardBar,
           { backgroundColor: isExpired ? "#9ca3af" : typeInfo.color },
         ]}
       />
-
-      {/* Header */}
       <View style={styles.cardHeader}>
         <View style={styles.badgeRow}>
-          {/* Type badge */}
           <View
             style={[
               styles.badge,
@@ -108,8 +110,6 @@ const NotifCard = ({ note }) => {
               {typeInfo.label}
             </Text>
           </View>
-
-          {/* Expired badge */}
           {isExpired && (
             <View style={[styles.badge, { backgroundColor: "#fee2e2" }]}>
               <Text style={[styles.badgeText, { color: "#dc2626" }]}>
@@ -118,8 +118,6 @@ const NotifCard = ({ note }) => {
             </View>
           )}
         </View>
-
-        {/* Priority badge */}
         <View
           style={[styles.priorityBadge, { backgroundColor: priorityInfo.bg }]}
         >
@@ -129,19 +127,15 @@ const NotifCard = ({ note }) => {
           </Text>
         </View>
       </View>
-
-      {/* Body */}
       <View style={styles.cardBody}>
         <Text style={[styles.cardTitle, isExpired && { color: "#9ca3af" }]}>
           {note.title}
         </Text>
-
         <Text style={[styles.cardMessage, isExpired && { color: "#9ca3af" }]}>
           {needsTruncation && !expanded
             ? note.message.substring(0, MESSAGE_LIMIT) + "..."
             : note.message}
         </Text>
-
         {needsTruncation && (
           <TouchableOpacity onPress={() => setExpanded(!expanded)}>
             <Text style={styles.readMore}>
@@ -149,16 +143,12 @@ const NotifCard = ({ note }) => {
             </Text>
           </TouchableOpacity>
         )}
-
-        {/* Footer */}
         <View style={styles.cardFooter}>
           <Text style={styles.dateText}>🕐 {formatDate(note.createdAt)}</Text>
           {note.createdBy?.name && (
             <Text style={styles.senderText}>👤 {note.createdBy.name}</Text>
           )}
         </View>
-
-        {/* Expiry */}
         {note.expiresAt && (
           <View
             style={[
@@ -183,7 +173,6 @@ const NotifCard = ({ note }) => {
   );
 };
 
-// ── Section Header ─────────────────────────────────────────────────────────────
 const SectionHeader = ({ icon, title, count, color }) => (
   <View style={[styles.sectionHeader, { borderLeftColor: color }]}>
     <Text style={styles.sectionIcon}>{icon}</Text>
@@ -194,8 +183,8 @@ const SectionHeader = ({ icon, title, count, color }) => (
   </View>
 );
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
 const NotificationsScreen = () => {
+  const navigation = useNavigation();
   const [adminNotifs, setAdminNotifs] = useState([]);
   const [teacherNotifs, setTeacherNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -206,12 +195,10 @@ const NotificationsScreen = () => {
     try {
       setError(null);
       const res = await api.get("/notifications/student/read");
-      const data = res.data.data || res.data; // ← हा fix
-
+      const data = res.data.data || res.data;
       setAdminNotifs(data.adminNotifications || []);
       setTeacherNotifs(data.teacherNotifications || []);
     } catch (err) {
-      console.error("Notifications error:", err);
       setError("Failed to load notifications");
     } finally {
       setLoading(false);
@@ -233,7 +220,7 @@ const NotificationsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1a4b6d" />
+        <ActivityIndicator size="large" color={C.primary} />
         <Text style={styles.loadingText}>Loading notifications...</Text>
       </View>
     );
@@ -241,11 +228,24 @@ const NotificationsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Page Header */}
-      <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>🔔 Notifications</Text>
-        <View style={styles.totalBadge}>
-          <Text style={styles.totalText}>{totalCount} total</Text>
+      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+
+      {/* ── NAVY APP BAR ── */}
+      <View style={styles.topBar}>
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
+        <View style={styles.topBarRow}>
+          <TouchableOpacity
+            style={styles.topBackBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          >
+            <Text style={styles.topBackBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>Notifications</Text>
+          <View style={styles.totalBadge}>
+            <Text style={styles.totalText}>{totalCount}</Text>
+          </View>
         </View>
       </View>
 
@@ -256,7 +256,7 @@ const NotificationsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#1a4b6d"]}
+            colors={[C.primary]}
           />
         }
       >
@@ -280,14 +280,13 @@ const NotificationsScreen = () => {
           </View>
         )}
 
-        {/* Admin Notifications */}
         {adminNotifs.length > 0 && (
           <View style={styles.section}>
             <SectionHeader
               icon="🏫"
               title="From College Admin"
               count={adminNotifs.length}
-              color="#1a4b6d"
+              color={C.primary}
             />
             {adminNotifs.map((note) => (
               <NotifCard key={note._id} note={note} />
@@ -295,7 +294,6 @@ const NotificationsScreen = () => {
           </View>
         )}
 
-        {/* Teacher Notifications */}
         {teacherNotifs.length > 0 && (
           <View style={styles.section}>
             <SectionHeader
@@ -314,59 +312,85 @@ const NotificationsScreen = () => {
   );
 };
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f1f5f9",
-  },
+  container: { flex: 1, backgroundColor: "#f1f5f9" },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f1f5f9",
   },
-  loadingText: {
-    marginTop: 12,
-    color: "#64748b",
-    fontSize: 14,
-  },
+  loadingText: { marginTop: 12, color: "#64748b", fontSize: 14 },
 
-  // Header
-  pageHeader: {
-    backgroundColor: "#1a4b6d",
-    paddingTop: 48,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+  /* ── NAVY APP BAR ── */
+  topBar: {
+    backgroundColor: C.primary,
+    paddingTop:
+      Platform.OS === "ios" ? 44 : (StatusBar.currentHeight || 24) + 6,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 20,
+    marginHorizontal: 8,
+    marginTop: Platform.OS === "ios" ? 8 : (StatusBar.currentHeight || 24) - 10,
+    marginBottom: 8,
+  },
+  circle1: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  circle2: {
+    position: "absolute",
+    bottom: -20,
+    left: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  topBarRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    ...(Platform.OS === "web"
-      ? { boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }
-      : { elevation: 4 }),
   },
-  pageTitle: {
+  topBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  topBackBtnText: {
+    color: C.white,
     fontSize: 22,
     fontWeight: "700",
-    color: "#ffffff",
+    lineHeight: 26,
+  },
+  topBarTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.white,
+    flex: 1,
+    textAlign: "center",
   },
   totalBadge: {
     backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
   },
-  totalText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  totalText: { color: C.white, fontSize: 12, fontWeight: "700" },
 
-  // Scroll
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 32 },
 
-  // Section
   section: { marginBottom: 24 },
   sectionHeader: {
     flexDirection: "row",
@@ -376,23 +400,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
   },
   sectionIcon: { fontSize: 18, marginRight: 8 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    flex: 1,
-  },
-  countBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  countText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  sectionTitle: { fontSize: 16, fontWeight: "700", flex: 1 },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12 },
+  countText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
-  // Card
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 14,
@@ -405,7 +416,6 @@ const styles = StyleSheet.create({
   urgentCard: { borderWidth: 1.5, borderColor: "#dc2626" },
   expiredCard: { opacity: 0.75 },
   cardBar: { height: 3 },
-
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -433,7 +443,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   badgeText: { fontSize: 11, fontWeight: "700" },
-
   cardBody: { padding: 14 },
   cardTitle: {
     fontSize: 15,
@@ -454,7 +463,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 10,
   },
-
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -466,14 +474,8 @@ const styles = StyleSheet.create({
   },
   dateText: { fontSize: 12, color: "#94a3b8" },
   senderText: { fontSize: 12, color: "#94a3b8" },
+  expiryBox: { marginTop: 10, padding: 8, borderRadius: 8 },
 
-  expiryBox: {
-    marginTop: 10,
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  // Error
   errorBox: {
     backgroundColor: "#fee2e2",
     padding: 16,
@@ -490,11 +492,7 @@ const styles = StyleSheet.create({
   },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  // Empty
-  emptyBox: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
+  emptyBox: { alignItems: "center", paddingVertical: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyTitle: {
     fontSize: 18,

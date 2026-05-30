@@ -11,6 +11,7 @@ import {
   Dimensions,
   RefreshControl,
   Platform,
+  StatusBar,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
@@ -20,7 +21,14 @@ import { COLORS, SIZES, SHADOWS } from "../../constants/theme";
 
 const { width } = Dimensions.get("window");
 
-// ✅ Web + Mobile दोन्हींसाठी
+const C = {
+  primary: "#1a4b6d",
+  primaryDark: "#0f3a4a",
+  white: "#ffffff",
+  bg: "#f0f4f8",
+  border: "#e2e8f0",
+};
+
 const showAlert = (title, message) => {
   if (Platform.OS === "web") {
     window.alert(`${title}\n${message}`);
@@ -31,7 +39,7 @@ const showAlert = (title, message) => {
 
 const StudentFees = () => {
   const navigation = useNavigation();
-  const { user } = useAuth(); // ✅ fixed - useAuth वापरला
+  const { user } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,12 +48,10 @@ const StudentFees = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [studentProfile, setStudentProfile] = useState(null);
-  const [copiedId, setCopiedId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadTimeoutRef = useRef(null);
 
-  /* ================= DATA VALIDATION ================= */
   const validateFeeDashboard = (data) => {
     const errors = [];
     if (!data) {
@@ -64,36 +70,24 @@ const StudentFees = () => {
     return errors;
   };
 
-  /* ================= FETCH PROFILE ================= */
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const res = await api.get("/students/my-profile");
-        if (res.data?.student) {
-          setStudentProfile(res.data.student);
-        }
-      } catch (err) {
-        // Continue without profile
-      }
+        if (res.data?.student) setStudentProfile(res.data.student);
+      } catch (err) {}
     };
     fetchProfile();
   }, []);
 
-  /* ================= CLEANUP TIMEOUT ================= */
   useEffect(() => {
     return () => {
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     };
   }, []);
 
-  /* ================= FETCH FEES ================= */
   const loadFees = async () => {
-    if (loadTimeoutRef.current) {
-      clearTimeout(loadTimeoutRef.current);
-    }
-
+    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     loadTimeoutRef.current = setTimeout(() => {
       setError({
         message:
@@ -107,28 +101,15 @@ const StudentFees = () => {
     try {
       setLoading(true);
       setError(null);
-
       const res = await api.get("/student/payments/my-fee-dashboard");
-
-      if (!res.data) {
-        throw new Error("Invalid fee dashboard response");
-      }
-
+      if (!res.data) throw new Error("Invalid fee dashboard response");
       const validation = validateFeeDashboard(res.data);
-      if (validation.length > 0) {
+      if (validation.length > 0)
         throw new Error(`Invalid dashboard data: ${validation.join(", ")}`);
-      }
-
       setDashboard(res.data);
-
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     } catch (err) {
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
-
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
       const statusCode = err.response?.status;
       const errorMsg =
         statusCode === 401
@@ -136,7 +117,6 @@ const StudentFees = () => {
           : statusCode === 404
             ? "Fee structure not found. Contact administration."
             : err.response?.data?.message || "Unable to load fee dashboard.";
-
       setError({ message: errorMsg, statusCode });
       showAlert("Error", errorMsg);
     } finally {
@@ -152,14 +132,11 @@ const StudentFees = () => {
     setIsRetrying(false);
   };
 
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const handleGoBack = () => navigation.goBack();
 
   useFocusEffect(
     React.useCallback(() => {
       loadFees();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
 
@@ -169,7 +146,6 @@ const StudentFees = () => {
     setRefreshing(false);
   };
 
-  /* ================= CALCULATIONS ================= */
   const progress =
     dashboard?.totalFee > 0
       ? Math.min(
@@ -198,7 +174,6 @@ const StudentFees = () => {
     return COLORS.secondary;
   };
 
-  /* ================= PAYMENT HANDLER ================= */
   const handleRedirectPayment = (installment) => {
     if (!installment?._id || installment.status !== "PENDING") {
       showAlert("Invalid Request", "Cannot process this payment");
@@ -212,7 +187,6 @@ const StudentFees = () => {
     });
   };
 
-  /* ================= LOADING STATE ================= */
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -227,7 +201,6 @@ const StudentFees = () => {
     );
   }
 
-  /* ================= ERROR STATE ================= */
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -272,7 +245,6 @@ const StudentFees = () => {
     );
   }
 
-  /* ================= RENDER INSTALLMENT ROW ================= */
   const renderInstallmentItem = ({ item: installment }) => {
     const statusColor = getInstallmentStatusColor(
       installment.status,
@@ -347,27 +319,28 @@ const StudentFees = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-          <FontAwesome name="arrow-left" size={20} color={COLORS.white} />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <FontAwesome name="money" size={24} color="#4fc3f7" />
-          <View>
-            <Text style={styles.headerTitle}>Fee Management</Text>
-            <Text style={styles.headerSubtitle}>
-              {studentProfile?.fullName || user?.name || "Student"} |{" "}
-              {dashboard.course?.name || "Course"}
-            </Text>
-          </View>
+      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+
+      {/* ── NAVY APP BAR ── */}
+      <View style={styles.topBar}>
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
+        <View style={styles.topBarRow}>
+          <TouchableOpacity
+            style={styles.topBackBtn}
+            onPress={handleGoBack}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          >
+            <Text style={styles.topBackBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>Fee Management</Text>
+          <TouchableOpacity
+            style={styles.helpIconBtn}
+            onPress={() => setShowHelp(!showHelp)}
+          >
+            <FontAwesome name="info-circle" size={18} color={C.white} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.helpButton}
-          onPress={() => setShowHelp(!showHelp)}
-        >
-          <FontAwesome name="info-circle" size={18} color={COLORS.white} />
-        </TouchableOpacity>
       </View>
 
       {/* Help Section */}
@@ -634,7 +607,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   loadingText: { marginTop: 12, color: COLORS.textSecondary, fontSize: 14 },
-
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -673,7 +645,6 @@ const styles = StyleSheet.create({
   },
   backBtnText: { color: COLORS.textSecondary, fontWeight: "600", fontSize: 14 },
   btnDisabled: { opacity: 0.6 },
-
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -695,30 +666,78 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  header: {
+  /* ── NAVY APP BAR ── */
+  topBar: {
+    backgroundColor: C.primary,
+    paddingTop:
+      Platform.OS === "ios" ? 44 : (StatusBar.currentHeight || 24) + 6,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 20,
+    marginHorizontal: 8,
+    marginTop: Platform.OS === "ios" ? 8 : (StatusBar.currentHeight || 24) - 10,
+    marginBottom: 8,
+  },
+  circle1: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  circle2: {
+    position: "absolute",
+    bottom: -20,
+    left: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  topBarRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0f3a4a",
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 16,
-    gap: 12,
+    justifyContent: "space-between",
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
+  topBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: COLORS.white },
-  headerSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
-  helpButton: { padding: 8 },
+  topBackBtnText: {
+    color: C.white,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 26,
+  },
+  topBarCenter: { flex: 1 },
+  topBarTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.white,
+    flex: 1,
+    textAlign: "center",
+  },
+  topBarSub: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  helpIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   helpSection: {
-    margin: 16,
+    margin: 12,
+    marginTop: 8,
     backgroundColor: "rgba(23,162,184,0.1)",
     borderRadius: 12,
     padding: 12,
@@ -742,7 +761,6 @@ const styles = StyleSheet.create({
   helpBold: { fontWeight: "700", color: COLORS.text },
 
   scrollView: { flex: 1 },
-
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", padding: 12, gap: 12 },
   summaryCard: {
     flex: 1,
@@ -830,6 +848,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     backgroundColor: "#0f3a4a",
+    borderRadius: 12,
   },
   installmentsTitle: { fontSize: 14, fontWeight: "700", color: COLORS.white },
   installmentsBody: { padding: 8 },

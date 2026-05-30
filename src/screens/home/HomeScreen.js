@@ -38,9 +38,10 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchDashboard = async () => {
     try {
+      // ✅ Dashboard + Profile dono ek saath fetch karto
       const [dashRes, profileRes] = await Promise.allSettled([
         api.get("/dashboard/student"),
-        api.get("/auth/me"),
+        api.get("/students/my-profile"), // ✅ ProfileScreen jaich API — college.name directly milto
       ]);
 
       const dashData =
@@ -55,25 +56,14 @@ const HomeScreen = ({ navigation }) => {
 
       if (dashData) setDashboardData(dashData);
 
-      const collegeId = profileData?.college_id;
-      if (collegeId) {
-        for (const ep of [
-          `/colleges/${collegeId}`,
-          `/college/${collegeId}`,
-          `/student/college`,
-          `/dashboard/college`,
-        ]) {
-          try {
-            const r = await api.get(ep);
-            const d = r.data?.data || r.data;
-            const n = d?.name || d?.collegeName || "";
-            if (n) {
-              setCollegeName(n);
-              break;
-            }
-          } catch {}
-        }
-      }
+      // ✅ College name — saglya possible jaghi check karto
+      const name =
+        profileData?.college?.name || // my-profile madhe college object
+        dashData?.college?.name || // dashboard madhe college object
+        dashData?.student?.collegeName || // student madhe collegeName field
+        dashData?.collegeName || // top level
+        "";
+      if (name) setCollegeName(name);
     } catch (err) {
       console.error("Dashboard error:", err);
     } finally {
@@ -110,7 +100,7 @@ const HomeScreen = ({ navigation }) => {
   const todaySlots = dashboardData?.todayTimetable || [];
 
   const formatCurrency = (amount) =>
-    `\u20B9${Number(amount || 0).toLocaleString("en-IN")}`;
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
   const getAttColor = (pct) =>
     pct >= 75 ? COLORS.success : pct >= 60 ? COLORS.warning : COLORS.danger;
@@ -167,34 +157,42 @@ const HomeScreen = ({ navigation }) => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* WELCOME CARD — horizontal like HTML */}
+        {/* ── PREMIUM WELCOME CARD ── */}
         <View style={s.welcomeCard}>
-          <View style={s.avatar}>
-            <Text style={{ fontSize: 24 }}>🎓</Text>
+          <View style={s.circleTop} />
+          <View style={s.circleBottom} />
+
+          <View style={s.welcomeRow}>
+            <View style={s.welcomeAvatar}>
+              <Text style={{ fontSize: 26 }}>🎓</Text>
+            </View>
+            <View style={s.welcomeInfo}>
+              <Text style={s.welcomeLabel}>Welcome back</Text>
+              <Text style={s.welcomeName} numberOfLines={1}>
+                {student.name || user?.name || "Student"}!
+              </Text>
+              {student.enrollmentNumber &&
+                student.enrollmentNumber !== "N/A" && (
+                  <Text style={s.enrollText}>
+                    🪪 {student.enrollmentNumber}
+                  </Text>
+                )}
+            </View>
           </View>
-          <View style={s.welcomeInfo}>
-            <Text style={s.welcomeName} numberOfLines={1}>
-              Welcome, {student.name || user?.name || "Student"}!
-            </Text>
-            {student.enrollmentNumber && student.enrollmentNumber !== "N/A" ? (
-              <Text style={s.enrollText}>🪪 {student.enrollmentNumber}</Text>
-            ) : (
-              <Text style={s.enrollText}> </Text>
-            )}
-            <TouchableOpacity
-              style={s.payBtn}
-              activeOpacity={0.8}
-              onPress={navigateToFees}
-            >
-              <Text style={s.payBtnText}>💳 Pay Fees</Text>
-            </TouchableOpacity>
-          </View>
+
+          <TouchableOpacity
+            style={s.payBtn}
+            activeOpacity={0.8}
+            onPress={navigateToFees}
+          >
+            <Text style={s.payBtnText}>💳 Pay Fees</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* INFO CARDS */}
+        {/* ── INFO CARDS ── */}
         <View style={s.infoRow}>
-          <View style={[s.infoCard, { marginRight: 4 }]}>
-            <View style={[s.infoIcon, { backgroundColor: COLORS.iconBlueBg }]}>
+          <View style={[s.infoCard, { marginRight: 5 }]}>
+            <View style={[s.infoIconWrap, { backgroundColor: "#e3f2fd" }]}>
               <Text style={{ fontSize: 18 }}>🎓</Text>
             </View>
             <Text style={s.infoVal} numberOfLines={2}>
@@ -202,10 +200,8 @@ const HomeScreen = ({ navigation }) => {
             </Text>
             <Text style={s.infoLbl}>Course</Text>
           </View>
-          <View style={[s.infoCard, { marginLeft: 4 }]}>
-            <View
-              style={[s.infoIcon, { backgroundColor: COLORS.iconPurpleBg }]}
-            >
+          <View style={[s.infoCard, { marginLeft: 5 }]}>
+            <View style={[s.infoIconWrap, { backgroundColor: "#ede7f6" }]}>
               <Text style={{ fontSize: 18 }}>🏛</Text>
             </View>
             <Text style={s.infoVal} numberOfLines={2}>
@@ -215,7 +211,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* ATTENDANCE */}
+        {/* ── ATTENDANCE ── */}
         <View style={s.sectionCard}>
           <View style={s.secHead}>
             <View style={s.secTitleWrap}>
@@ -287,7 +283,7 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* TODAY'S CLASSES */}
+        {/* ── TODAY'S CLASSES ── */}
         <View style={s.sectionCard}>
           <View style={s.secHead}>
             <View style={s.secTitleWrap}>
@@ -359,7 +355,7 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* FEE SUMMARY */}
+        {/* ── FEE SUMMARY ── */}
         <View style={s.sectionCard}>
           <View style={s.secHead}>
             <View style={s.secTitleWrap}>
@@ -437,12 +433,12 @@ const HomeScreen = ({ navigation }) => {
               activeOpacity={0.8}
               onPress={navigateToFees}
             >
-              <Text style={s.payNowText}>Pay Now</Text>
+              <Text style={s.payNowText}>₹ Pay Now</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* NOTIFICATIONS */}
+        {/* ── NOTIFICATIONS ── */}
         <View style={[s.sectionCard, { marginBottom: 24 }]}>
           <View style={s.secHead}>
             <View style={s.secTitleWrap}>
@@ -555,71 +551,103 @@ const s = StyleSheet.create({
 
   scrollContent: { padding: 12, gap: 10 },
 
-  /* WELCOME CARD — horizontal */
+  /* WELCOME CARD */
   welcomeCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radiusLg,
-    padding: 16,
+    backgroundColor: "#1a4b6d",
+    borderRadius: 20,
+    padding: 18,
+    overflow: "hidden",
+    position: "relative",
+  },
+  circleTop: {
+    position: "absolute",
+    top: -35,
+    right: -35,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  circleBottom: {
+    position: "absolute",
+    bottom: -25,
+    left: 30,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  welcomeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    ...SHADOWS.medium,
+    gap: 14,
+    marginBottom: 16,
   },
-  avatar: {
-    width: 50,
-    height: 50,
+  welcomeAvatar: {
+    width: 52,
+    height: 52,
     borderRadius: 14,
-    backgroundColor: COLORS.primary,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
   welcomeInfo: { flex: 1 },
-  welcomeName: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.text,
+  welcomeLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  enrollText: { fontSize: 11, color: COLORS.textMuted, marginBottom: 8 },
-  payBtn: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+  welcomeName: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
   },
-  payBtnText: { color: COLORS.white, fontWeight: "700", fontSize: 12 },
+  enrollText: { fontSize: 11, color: "rgba(255,255,255,0.55)" },
+  payBtn: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
 
   /* INFO CARDS */
   infoRow: { flexDirection: "row" },
   infoCard: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 0.5,
     borderColor: COLORS.border,
     ...SHADOWS.small,
   },
-  infoIcon: {
+  infoIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   infoVal: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: COLORS.text,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   infoLbl: {
     fontSize: 10,
@@ -725,9 +753,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     marginBottom: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
   slotTimeText: { fontSize: 11, fontWeight: "600", color: "#1a4b6d" },
   slotSubject: {
@@ -767,7 +792,6 @@ const s = StyleSheet.create({
   slotInfoItem: { fontSize: 11, color: COLORS.textSecondary },
   showMore: { padding: 10, alignItems: "center", backgroundColor: "#f8fafc" },
   showMoreText: { fontSize: 12, color: COLORS.primary, fontWeight: "600" },
-
   emptyBox: { alignItems: "center", paddingVertical: 20 },
   emptyText: { fontSize: 13, color: COLORS.textMuted, marginBottom: 10 },
   viewTTBtn: {
