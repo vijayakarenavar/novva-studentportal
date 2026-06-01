@@ -158,47 +158,16 @@ export default function ProfileScreen() {
 
   const { student, college, department, course } = profile;
 
-  const statusColor =
-    student?.status === "APPROVED"
-      ? C.success
-      : student?.status === "REJECTED"
-        ? C.danger
-        : C.warning;
-
   const visibleTabs = TABS.filter((tab) => {
     if (tab.id === "ssc") return isDocEnabled("10th_marksheet");
     if (tab.id === "hsc") return isDocEnabled("12th_marksheet");
     return true;
   });
 
-  const initials = (student?.fullName || "S")[0].toUpperCase();
-
   return (
     <View style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ── TOP APP BAR (HomeScreen / Timetable style) ── */}
-      <View style={s.topBar}>
-        <TouchableOpacity
-          style={s.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-        >
-          <Text style={s.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <Text style={s.topBarTitle} numberOfLines={1}>
-          My Profile
-        </Text>
-        <TouchableOpacity
-          style={s.editBtn}
-          onPress={() => navigation.navigate("EditProfile")}
-          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-        >
-          <Text style={s.editBtnText}>✏️</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── SCROLL ── */}
       <Animated.ScrollView
         style={[s.scroll, { opacity: fadeAnim }]}
         contentContainerStyle={s.scrollContent}
@@ -211,68 +180,37 @@ export default function ProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── NAVY WELCOME CARD (HomeScreen / Timetable style) ── */}
+        {/* ── SIMPLIFIED WELCOME CARD ── */}
         <View style={s.welcomeCard}>
           {/* Decorative circles */}
           <View style={s.circleTop} />
           <View style={s.circleBottom} />
 
           <View style={s.welcomeRow}>
-            {/* Avatar */}
-            <View style={s.welcomeAvatar}>
-              <Text style={s.welcomeAvatarText}>{initials}</Text>
-            </View>
+            {/* Back button */}
+            <TouchableOpacity
+              style={s.backBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            >
+              <Text style={s.backBtnText}>←</Text>
+            </TouchableOpacity>
 
-            {/* Info */}
-            <View style={s.welcomeInfo}>
-              <Text style={s.welcomeLabel}>MY PROFILE</Text>
-              <Text style={s.welcomeName} numberOfLines={1}>
-                {student?.fullName || user?.name || "Student"}
-              </Text>
-              {(course?.name || department?.name) && (
-                <Text style={s.welcomeSub} numberOfLines={1}>
-                  {course?.name || ""}
-                  {course?.name && department?.name ? " • " : ""}
-                  {department?.name || ""}
-                </Text>
-              )}
-            </View>
+            {/* Title */}
+            <Text style={s.welcomeTitle}>My Profile</Text>
 
-            {/* Status + Semester badges (right side) */}
-            <View style={s.badgeStack}>
-              <View style={[s.statusBadge, { backgroundColor: statusColor }]}>
-                <Text style={s.statusBadgeText}>
-                  {student?.status || "PENDING"}
-                </Text>
-              </View>
-              {student?.currentSemester && (
-                <View style={s.semBadge}>
-                  <Text style={s.semBadgeText}>
-                    Sem {student.currentSemester}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Quick info chips */}
-          <View style={s.quickInfoRow}>
-            {student?.email && (
-              <View style={s.quickInfoChip}>
-                <Text style={s.quickInfoText} numberOfLines={1}>
-                  ✉️ {student.email}
-                </Text>
-              </View>
-            )}
-            {student?.mobileNumber && (
-              <View style={s.quickInfoChip}>
-                <Text style={s.quickInfoText}>📞 {student.mobileNumber}</Text>
-              </View>
-            )}
+            {/* Edit button */}
+            <TouchableOpacity
+              style={s.editBtn}
+              onPress={() => navigation.navigate("EditProfile")}
+              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            >
+              <Text style={s.editBtnText}>✏️</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── TAB BAR (inside scroll for consistency) ── */}
+        {/* ── TAB BAR ── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -807,68 +745,14 @@ const s = StyleSheet.create({
   },
   retryBtnText: { color: C.white, fontWeight: "700", fontSize: 14 },
 
-  // ── TOP APP BAR (same as HomeScreen / Timetable) ──
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: C.white,
-    paddingHorizontal: 14,
-    paddingTop:
-      Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
-    paddingBottom: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.border,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: C.bg,
-    borderWidth: 0.5,
-    borderColor: C.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backBtnText: {
-    color: C.primary,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  topBarTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: C.primary,
-    flex: 1,
-    textAlign: "center",
-  },
-  editBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: C.bg,
-    borderWidth: 0.5,
-    borderColor: C.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  editBtnText: { fontSize: 16 },
-
-  // ── SCROLL ──
-  scroll: { flex: 1 },
-  scrollContent: { padding: 14, gap: 12, paddingBottom: 32 },
-
-  // ── NAVY WELCOME CARD (same pattern as HomeScreen / Timetable) ──
+  // ── SIMPLIFIED WELCOME CARD ──
   welcomeCard: {
     backgroundColor: C.primary,
     borderRadius: 16,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop:
+      Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
+    paddingBottom: 16,
     overflow: "hidden",
     position: "relative",
     marginBottom: 2,
@@ -894,77 +778,42 @@ const s = StyleSheet.create({
   welcomeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: "space-between",
   },
-  welcomeAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: C.white,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
-    flexShrink: 0,
-  },
-  welcomeAvatarText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: C.primary,
-  },
-  welcomeInfo: { flex: 1 },
-  welcomeLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  welcomeName: {
+  welcomeTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: C.white,
-    marginBottom: 3,
+    flex: 1,
+    textAlign: "center",
   },
-  welcomeSub: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  badgeStack: {
-    alignItems: "flex-end",
-    gap: 5,
-    flexShrink: 0,
+  backBtnText: {
+    color: C.white,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 24,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+  editBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  statusBadgeText: { color: C.white, fontSize: 10, fontWeight: "700" },
-  semBadge: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  semBadgeText: { color: C.white, fontSize: 10, fontWeight: "600" },
-  quickInfoRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  quickInfoChip: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  quickInfoText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 11,
-  },
+  editBtnText: { fontSize: 16 },
+
+  // ── SCROLL ──
+  scroll: { flex: 1 },
+  scrollContent: { padding: 14, gap: 12, paddingBottom: 32 },
 
   // ── TAB BAR ──
   tabBar: {

@@ -63,7 +63,8 @@ export default function EditProfileScreen() {
   const fetchProfile = async () => {
     try {
       const res = await api.get("/students/my-profile");
-      const { student, department, course } = res.data;
+      const profileData = res.data?.data || res.data;
+      const { student, department, course } = profileData;
       setForm({
         fullName: student.fullName || "",
         email: student.email || "",
@@ -122,18 +123,34 @@ export default function EditProfileScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ── HEADER ── */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={s.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <View>
-          <Text style={s.headerTitle}>✏️ Edit Profile</Text>
-          <Text style={s.headerSub}>
-            Update your personal & academic details
-          </Text>
+      {/* ── WELCOME CARD HEADER (Profile page style) ── */}
+      <View style={s.welcomeCard}>
+        {/* Decorative circles */}
+        <View style={s.circleTop} />
+        <View style={s.circleBottom} />
+
+        <View style={s.welcomeRow}>
+          {/* Back button */}
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          >
+            <Text style={s.backBtnText}>←</Text>
+          </TouchableOpacity>
+
+          {/* Title */}
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Text style={s.headerTitle}>✏️ Edit Profile</Text>
+            <Text style={s.headerSub}>
+              Update your personal & academic details
+            </Text>
+          </View>
+
+          {/* Spacer to keep title centered */}
+          <View style={{ width: 34 }} />
         </View>
       </View>
 
@@ -416,36 +433,71 @@ const s = StyleSheet.create({
   },
   loadingText: { marginTop: 12, color: C.textSecondary, fontSize: 14 },
 
-  // Header
-  header: {
-    backgroundColor: C.primaryDark,
-    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight + 12 || 28,
-    paddingBottom: 20,
+  // ── WELCOME CARD (same as ProfileScreen) ──
+  welcomeCard: {
+    backgroundColor: C.primary,
+    borderRadius: 20,
+    marginTop: Platform.OS === "ios" ? 44 : (StatusBar.currentHeight || 24) + 2,
+    marginHorizontal: 14,
+    marginBottom: 12,
     paddingHorizontal: 16,
+    paddingTop: 22,
+    paddingBottom: 22,
+    overflow: "hidden",
+    position: "relative",
+  },
+  circleTop: {
+    position: "absolute",
+    top: -35,
+    right: -35,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  circleBottom: {
+    position: "absolute",
+    bottom: -25,
+    left: 30,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  welcomeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    justifyContent: "space-between",
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
   backBtnText: {
     color: C.white,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    lineHeight: 26,
+    lineHeight: 24,
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: C.white },
-  headerSub: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.white,
+  },
+  headerSub: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
+    textAlign: "center",
+  },
 
   // Scroll
   scroll: { flex: 1 },
-  scrollContent: { padding: 14 },
+  scrollContent: { padding: 14, paddingTop: 16 },
 
   // Error
   errorBanner: {
