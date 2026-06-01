@@ -14,6 +14,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
+import { FontAwesome } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("window");
 
@@ -27,7 +28,6 @@ const LoginScreen = ({ navigation }) => {
 
   const { login } = useAuth();
 
-  // Animations
   const cardAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -92,7 +92,6 @@ const LoginScreen = ({ navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.root}
     >
-      {/* Background */}
       <View style={styles.bg}>
         <View style={styles.bgOrb1} />
         <View style={styles.bgOrb2} />
@@ -113,23 +112,19 @@ const LoginScreen = ({ navigation }) => {
             },
           ]}
         >
-          {/* Form Icon */}
           <View style={styles.formIcon}>
             <Text style={styles.formIconText}>👤</Text>
           </View>
 
-          {/* Title */}
           <Text style={styles.formTitle}>Sign In</Text>
           <Text style={styles.formSub}>Enter your credentials to continue</Text>
 
-          {/* Secure Badge */}
           <View style={styles.secureBadge}>
             <View style={styles.secureBadgeInner}>
               <Text style={styles.secureBadgeText}>🔒 SECURE LOGIN</Text>
             </View>
           </View>
 
-          {/* Error Alert */}
           {error ? (
             <View style={styles.alertError}>
               <Text style={styles.alertText}>⚠ {error}</Text>
@@ -142,7 +137,6 @@ const LoginScreen = ({ navigation }) => {
             </View>
           ) : null}
 
-          {/* Email Field */}
           <View style={styles.fieldGroup}>
             <Text
               style={[
@@ -163,7 +157,7 @@ const LoginScreen = ({ navigation }) => {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor="#b0c8d4"
+                placeholderTextColor="#94b4c8"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 onFocus={() => setFocusedField("email")}
@@ -173,7 +167,6 @@ const LoginScreen = ({ navigation }) => {
             {focusedField === "email" && <View style={styles.inputBar} />}
           </View>
 
-          {/* Password Field */}
           <View style={styles.fieldGroup}>
             <Text
               style={[
@@ -194,7 +187,7 @@ const LoginScreen = ({ navigation }) => {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••••"
-                placeholderTextColor="#b0c8d4"
+                placeholderTextColor="#94b4c8"
                 secureTextEntry={!showPassword}
                 onFocus={() => setFocusedField("password")}
                 onBlur={() => setFocusedField("")}
@@ -203,13 +196,16 @@ const LoginScreen = ({ navigation }) => {
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeBtn}
               >
-                <Text style={styles.eyeIcon}>{showPassword ? "🙈" : "👁"}</Text>
+                <FontAwesome
+                  name={showPassword ? "eye" : "eye-slash"}
+                  size={16}
+                  color="#4a6577"
+                />
               </TouchableOpacity>
             </View>
             {focusedField === "password" && <View style={styles.inputBar} />}
           </View>
 
-          {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleLogin}
@@ -223,7 +219,6 @@ const LoginScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Forgot Password */}
           <TouchableOpacity
             style={styles.forgotBtn}
             onPress={() => navigation.navigate("ForgotPassword")}
@@ -231,10 +226,8 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.forgotText}>🔒 Forgot Password?</Text>
           </TouchableOpacity>
 
-          {/* Footer Divider */}
           <View style={styles.footerDivider} />
 
-          {/* Footer */}
           <View style={styles.footer}>
             <View style={styles.securityBadge}>
               <View style={styles.securityDot} />
@@ -264,7 +257,7 @@ const styles = StyleSheet.create({
     width: 400,
     height: 400,
     borderRadius: 200,
-    backgroundColor: "rgba(61,181,230,0.08)",
+    backgroundColor: "rgba(26,75,109,0.08)",
     top: -150,
     left: -100,
   },
@@ -273,7 +266,7 @@ const styles = StyleSheet.create({
     width: 350,
     height: 350,
     borderRadius: 175,
-    backgroundColor: "rgba(79,195,247,0.06)",
+    backgroundColor: "rgba(26,75,109,0.06)",
     bottom: -100,
     right: -80,
   },
@@ -282,7 +275,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: "rgba(61,181,230,0.04)",
+    backgroundColor: "rgba(26,75,109,0.04)",
     top: height * 0.4,
     left: width * 0.3,
   },
@@ -300,7 +293,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 28,
     borderWidth: 1,
-    borderColor: "rgba(61,181,230,0.18)",
+    borderColor: "rgba(26,75,109,0.18)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
@@ -311,9 +304,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 13,
-    backgroundColor: "rgba(61,181,230,0.12)",
+    backgroundColor: "rgba(26,75,109,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(61,181,230,0.25)",
+    borderColor: "rgba(26,75,109,0.25)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -340,13 +333,13 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(61,181,230,0.3)",
-    backgroundColor: "rgba(61,181,230,0.07)",
+    borderColor: "rgba(26,75,109,0.3)",
+    backgroundColor: "rgba(26,75,109,0.07)",
   },
   secureBadgeText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#1a8ab5",
+    color: "#1a4b6d",
     letterSpacing: 1.5,
   },
   alertError: {
@@ -377,20 +370,20 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     letterSpacing: 1.2,
   },
-  labelFocus: { color: "#3db5e6" },
+  labelFocus: { color: "#1a4b6d" },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f4f8fb",
     borderWidth: 1.5,
-    borderColor: "#d4e6f0",
+    borderColor: "#c8d8e8",
     borderRadius: 10,
     overflow: "hidden",
   },
   inputWrapFocus: {
-    borderColor: "#3db5e6",
-    backgroundColor: "#eaf5fb",
-    shadowColor: "#3db5e6",
+    borderColor: "#1a4b6d",
+    backgroundColor: "#e8f0f6",
+    shadowColor: "#1a4b6d",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -405,7 +398,7 @@ const styles = StyleSheet.create({
   },
   inputBar: {
     height: 2,
-    backgroundColor: "#3db5e6",
+    backgroundColor: "#1a4b6d",
     borderRadius: 1,
     marginTop: 2,
   },
@@ -415,13 +408,13 @@ const styles = StyleSheet.create({
   },
   eyeIcon: { fontSize: 16 },
   submitBtn: {
-    backgroundColor: "#3db5e6",
+    backgroundColor: "#1a4b6d",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 6,
-    shadowColor: "#3db5e6",
+    shadowColor: "#1a4b6d",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -437,8 +430,8 @@ const styles = StyleSheet.create({
   forgotBtn: {
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 10, // 👈 हे ॲड करा
-    alignSelf: "center", // 👈 हे ॲड केल्यास बटन मध्यभागी राहील
+    paddingHorizontal: 10,
+    alignSelf: "center",
   },
   forgotText: {
     fontSize: 13,
@@ -474,7 +467,7 @@ const styles = StyleSheet.create({
   },
   homeLink: {
     fontSize: 12,
-    color: "#3db5e6",
+    color: "#1a4b6d",
     fontWeight: "600",
   },
 });

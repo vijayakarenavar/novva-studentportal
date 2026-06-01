@@ -327,14 +327,6 @@ export default function StudentTimetableScreen() {
   const today = new Date();
   const currentDayAbbr = DAY_MAP[today.getDay()];
   const todayDisplaySlots = weekly[selectedDay] || [];
-  const courseName =
-    scheduleData?.timetable?.course_id?.name ||
-    todaySlots[0]?.course_id?.name ||
-    "";
-  const semester =
-    scheduleData?.timetable?.semester ||
-    todaySlots[0]?.timetable_id?.semester ||
-    "";
 
   const getDateForDay = (dayCode) => {
     const idx = DAYS.indexOf(dayCode);
@@ -364,24 +356,8 @@ export default function StudentTimetableScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ── TOP APP BAR (HomeScreen style) ── */}
-      <View style={s.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={s.backBtn}
-          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-        >
-          <Text style={s.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <Text style={s.topBarTitle} numberOfLines={1}>
-          My Timetable
-        </Text>
-        <View style={{ width: 34 }} />
-      </View>
-
-      {/* ── SCROLL ── */}
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -394,39 +370,36 @@ export default function StudentTimetableScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── NAVY WELCOME CARD (HomeScreen style) ── */}
+        {/* ── PROFILE-STYLE WELCOME CARD ── */}
         <View style={s.welcomeCard}>
+          {/* Decorative circles */}
           <View style={s.circleTop} />
           <View style={s.circleBottom} />
 
+          {/* Row 1: back + title + time */}
           <View style={s.welcomeRow}>
-            <View style={s.welcomeAvatar}>
-              <Text style={{ fontSize: 24 }}>📅</Text>
-            </View>
-            <View style={s.welcomeInfo}>
-              <Text style={s.welcomeLabel}>MY TIMETABLE</Text>
-              {courseName ? (
-                <Text style={s.courseText} numberOfLines={1}>
-                  {courseName}
-                </Text>
-              ) : null}
-              {semester ? (
-                <Text style={s.semText}>🎓 Semester {semester}</Text>
-              ) : null}
-            </View>
-            <View style={s.clockBox}>
-              <Text style={s.clockTime}>
+            <TouchableOpacity
+              style={s.backBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            >
+              <Text style={s.backBtnText}>←</Text>
+            </TouchableOpacity>
+
+            <Text style={s.welcomeTitle}>My Timetable</Text>
+
+            <View style={s.timeChipCard}>
+              <Text style={s.timeChipText}>
                 {currentTime.toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: true,
                 })}
               </Text>
-              <Text style={s.clockLabel}>NOW</Text>
             </View>
           </View>
 
-          {/* Week Navigation */}
+          {/* Row 2: week navigation */}
           <View style={s.weekNav}>
             <TouchableOpacity
               style={s.weekArrowBtn}
@@ -469,12 +442,20 @@ export default function StudentTimetableScreen() {
                   Active:{" "}
                   {parseLocalDate(activePeriod.startDate).toLocaleDateString(
                     "en-US",
-                    { day: "numeric", month: "short", year: "numeric" },
+                    {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    },
                   )}
                   {" – "}
                   {parseLocalDate(activePeriod.endDate).toLocaleDateString(
                     "en-US",
-                    { day: "numeric", month: "short", year: "numeric" },
+                    {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    },
                   )}
                 </Text>
               )}
@@ -493,62 +474,6 @@ export default function StudentTimetableScreen() {
             </TouchableOpacity>
           </View>
         )}
-
-        {/* ── STATS STRIP ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 14 }}
-        >
-          <StatPill
-            icon="📅"
-            value={
-              scheduleSummary?.totalScheduledSlots ||
-              Object.values(weekly).flat().length
-            }
-            label="This Week"
-            color={C.primary}
-          />
-          <StatPill
-            icon="☀️"
-            value={todaySlots.length}
-            label="Today"
-            color={C.success}
-          />
-          <StatPill
-            icon="🗓"
-            value={
-              scheduleSummary?.workingDays ||
-              DAYS.filter((d) => weekly[d]?.length > 0).length
-            }
-            label="Working Days"
-            color={C.info}
-          />
-          {scheduleSummary?.cancelledSlots > 0 && (
-            <StatPill
-              icon="❌"
-              value={scheduleSummary.cancelledSlots}
-              label="Cancelled"
-              color={C.danger}
-            />
-          )}
-          {scheduleSummary?.extraClasses > 0 && (
-            <StatPill
-              icon="✅"
-              value={scheduleSummary.extraClasses}
-              label="Extra"
-              color={C.success}
-            />
-          )}
-          {scheduleSummary?.holidays > 0 && (
-            <StatPill
-              icon="🎉"
-              value={scheduleSummary.holidays}
-              label="Holidays"
-              color={C.warning}
-            />
-          )}
-        </ScrollView>
 
         {navLoading && (
           <View style={s.navLoading}>
@@ -733,7 +658,7 @@ export default function StudentTimetableScreen() {
                     <Text style={s.weekRowMore}>+{slots.length - 3} more</Text>
                   )}
                 </View>
-                <Text style={s.weekRowArrow}>›</Text>
+                <Text style={s.weekRowArrow}></Text>
               </TouchableOpacity>
             );
           })}
@@ -742,42 +667,6 @@ export default function StudentTimetableScreen() {
     </View>
   );
 }
-
-// ─── STAT PILL ────────────────────────────────────────────────────────────────
-function StatPill({ icon, value, label, color }) {
-  return (
-    <View style={[sp.pill, { borderColor: color + "44" }]}>
-      <Text style={sp.icon}>{icon}</Text>
-      <Text style={[sp.value, { color }]}>{value}</Text>
-      <Text style={sp.label}>{label}</Text>
-    </View>
-  );
-}
-const sp = StyleSheet.create({
-  pill: {
-    alignItems: "center",
-    backgroundColor: C.white,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginRight: 8,
-    borderWidth: 1.5,
-    minWidth: 76,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  icon: { fontSize: 20, marginBottom: 3 },
-  value: { fontSize: 22, fontWeight: "700" },
-  label: {
-    fontSize: 10,
-    color: C.textSecondary,
-    marginTop: 2,
-    textAlign: "center",
-  },
-});
 
 // ─── EMPTY DAY ────────────────────────────────────────────────────────────────
 function EmptyDay({ day, isToday }) {
@@ -822,10 +711,7 @@ function HolidayCard({ slot }) {
         </View>
       </View>
       <View style={hc.msgBox}>
-        <Text style={hc.msgText}>
-          🌟 Enjoy your holiday! No classes today. Use this time to rest and
-          prepare for upcoming sessions.
-        </Text>
+        <Text style={hc.msgText}>🌟 Enjoy your holiday! No classes today.</Text>
       </View>
     </View>
   );
@@ -1011,58 +897,21 @@ const s = StyleSheet.create({
     fontWeight: "500",
   },
 
-  /* ── TOP APP BAR (HomeScreen style) ── */
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: C.white,
-    paddingHorizontal: 14,
-    paddingTop:
-      Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
-    paddingBottom: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.border,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: C.bg,
-    borderWidth: 0.5,
-    borderColor: C.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backBtnText: {
-    color: C.primary,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  topBarTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: C.primary,
-    flex: 1,
-    textAlign: "center",
-  },
+  // ── SCROLL ──
+  scroll: { flex: 1 },
+  scrollContent: { padding: 14, paddingTop: 0, gap: 12, paddingBottom: 32 },
 
-  /* ── NAVY WELCOME CARD ── */
+  // ── PROFILE-STYLE WELCOME CARD ──
   welcomeCard: {
     backgroundColor: C.primary,
     borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 4,
-    marginTop: 12,
-    marginBottom: 5,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
     overflow: "hidden",
     position: "relative",
+    marginBottom: 2,
+    marginTop: Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 2,
   },
   circleTop: {
     position: "absolute",
@@ -1085,60 +934,43 @@ const s = StyleSheet.create({
   welcomeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 14,
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  welcomeAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  welcomeInfo: { flex: 1 },
-  welcomeLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  courseText: {
-    fontSize: 15,
+  welcomeTitle: {
+    fontSize: 16,
     fontWeight: "700",
     color: C.white,
-    marginBottom: 3,
+    flex: 1,
+    textAlign: "center",
   },
-  semText: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
-  },
-  clockBox: {
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
     alignItems: "center",
+  },
+  backBtnText: {
+    color: C.white,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 24,
+  },
+  timeChipCard: {
     backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    flexShrink: 0,
+    paddingVertical: 6,
   },
-  clockTime: { fontSize: 13, fontWeight: "700", color: C.white },
-  clockLabel: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 0.5,
-    marginTop: 1,
-  },
+  timeChipText: { color: C.white, fontSize: 13, fontWeight: "600" },
 
-  /* Week Nav */
+  // ── WEEK NAV (inside welcome card) ──
   weekNav: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
     overflow: "hidden",
   },
@@ -1153,11 +985,7 @@ const s = StyleSheet.create({
   },
   weekHint: { color: "rgba(255,255,255,0.6)", fontSize: 10, marginTop: 2 },
 
-  /* Scroll */
-  scroll: { flex: 1 },
-  scrollContent: { padding: 14, paddingTop: 0 },
-
-  /* Banners */
+  // ── BANNERS ──
   rangeBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -1166,7 +994,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.warning,
     padding: 12,
-    marginBottom: 12,
     gap: 8,
   },
   rangeBannerTitle: { fontSize: 13, fontWeight: "700", color: "#92400e" },
@@ -1186,7 +1013,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#fecaca",
     padding: 12,
-    marginBottom: 12,
   },
   errorText: { flex: 1, color: C.danger, fontSize: 13 },
   errorRetry: {
@@ -1196,18 +1022,16 @@ const s = StyleSheet.create({
     marginLeft: 8,
   },
 
-  /* Nav loading */
   navLoading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 10,
-    marginBottom: 6,
   },
   navLoadingText: { color: C.textSecondary, fontSize: 13 },
 
-  /* Day tabs */
+  // ── DAY TABS ──
   dayTab: {
     alignItems: "center",
     backgroundColor: C.white,
@@ -1238,12 +1062,11 @@ const s = StyleSheet.create({
   dayTabDotSelected: { backgroundColor: C.white },
   todayBadge: { fontSize: 8, color: C.accent, fontWeight: "700", marginTop: 1 },
 
-  /* Section card */
+  // ── SECTION CARD ──
   sectionCard: {
     backgroundColor: C.white,
     borderRadius: 18,
     padding: 14,
-    marginBottom: 12,
     borderWidth: 0.5,
     borderColor: C.border,
     shadowColor: "#000",
@@ -1271,7 +1094,7 @@ const s = StyleSheet.create({
   },
   sectionBadgeText: { fontSize: 11, color: C.primary, fontWeight: "600" },
 
-  /* Weekly rows */
+  // ── WEEKLY ROWS ──
   weekRow: {
     flexDirection: "row",
     alignItems: "flex-start",

@@ -391,6 +391,7 @@ const StudentFees = () => {
           />
         }
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* Summary Cards */}
         <View style={styles.summaryGrid}>
@@ -557,40 +558,6 @@ const StudentFees = () => {
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
               />
             )}
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={styles.footerInfo}>
-            <Text style={styles.footerText}>Student Fee Dashboard</Text>
-            <Text style={styles.footerText}>
-              Last updated: {new Date().toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.footerActions}>
-            <TouchableOpacity
-              style={styles.footerBtn}
-              onPress={handleRetry}
-              disabled={loading}
-            >
-              <FontAwesome
-                name="refresh"
-                size={12}
-                color={COLORS.textSecondary}
-              />
-              <Text style={styles.footerBtnText}>
-                {loading ? "Refreshing..." : "Refresh"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.footerBtn} onPress={handleGoBack}>
-              <FontAwesome
-                name="arrow-left"
-                size={12}
-                color={COLORS.textSecondary}
-              />
-              <Text style={styles.footerBtnText}>Back</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -836,6 +803,7 @@ const styles = StyleSheet.create({
   statItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   statText: { fontSize: 11, color: COLORS.textSecondary },
 
+  // ── Fee Installments — C.primary color ──
   installmentsCard: {
     margin: 12,
     backgroundColor: COLORS.white,
@@ -847,7 +815,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    backgroundColor: "#0f3a4a",
+    backgroundColor: C.primary, // ← #1a4b6d (Edit Profile button color)
     borderRadius: 12,
   },
   installmentsTitle: { fontSize: 14, fontWeight: "700", color: COLORS.white },
@@ -920,32 +888,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success,
   },
   payBtnText: { fontSize: 11, fontWeight: "600", color: COLORS.white },
-
-  footer: {
-    margin: 12,
-    padding: 14,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    ...SHADOWS.small,
-  },
-  footerInfo: { gap: 4, marginBottom: 12 },
-  footerText: { fontSize: 11, color: COLORS.textSecondary },
-  footerActions: { flexDirection: "row", gap: 8 },
-  footerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.textSecondary,
-  },
-  footerBtnText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-  },
 });
 
 export default StudentFees;

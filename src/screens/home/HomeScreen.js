@@ -123,27 +123,6 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={s.root}>
-      {/* ── TOP BAR ── */}
-      <View style={s.topBar}>
-        <View style={{ width: 34 }} />
-        <Text style={s.collegeName} numberOfLines={1}>
-          {collegeName || "Smart College ERP"}
-        </Text>
-        <TouchableOpacity
-          style={s.bellBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-          onPress={() => navigation.navigate("Notifications")}
-        >
-          <Text style={{ fontSize: 18 }}>🔔</Text>
-          {unreadCount > 0 && (
-            <View style={s.badge}>
-              <Text style={s.badgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
       {/* ── SCROLL ── */}
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
@@ -179,6 +158,18 @@ const HomeScreen = ({ navigation }) => {
                 )}
             </View>
           </View>
+          <TouchableOpacity
+            style={s.bellBtn}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <Text style={{ fontSize: 18 }}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={s.badge}>
+                <Text style={s.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={s.payBtn}
@@ -187,28 +178,6 @@ const HomeScreen = ({ navigation }) => {
           >
             <Text style={s.payBtnText}>💳 Pay Fees</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* ── INFO CARDS ── */}
-        <View style={s.infoRow}>
-          <View style={[s.infoCard, { marginRight: 5 }]}>
-            <View style={[s.infoIconWrap, { backgroundColor: "#e3f2fd" }]}>
-              <Text style={{ fontSize: 18 }}>🎓</Text>
-            </View>
-            <Text style={s.infoVal} numberOfLines={2}>
-              {student.course || "N/A"}
-            </Text>
-            <Text style={s.infoLbl}>Course</Text>
-          </View>
-          <View style={[s.infoCard, { marginLeft: 5 }]}>
-            <View style={[s.infoIconWrap, { backgroundColor: "#ede7f6" }]}>
-              <Text style={{ fontSize: 18 }}>🏛</Text>
-            </View>
-            <Text style={s.infoVal} numberOfLines={2}>
-              {student.department || "N/A"}
-            </Text>
-            <Text style={s.infoLbl}>Department</Text>
-          </View>
         </View>
 
         {/* ── ATTENDANCE ── */}
@@ -503,36 +472,18 @@ const s = StyleSheet.create({
   },
   loadingText: { marginTop: 12, color: COLORS.textSecondary, fontSize: 14 },
 
-  /* TOP BAR */
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-    ...SHADOWS.small,
-  },
-  collegeName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.primary,
-    flex: 1,
-    textAlign: "center",
-  },
   bellBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: COLORS.light,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
   },
   badge: {
     position: "absolute",
@@ -558,6 +509,7 @@ const s = StyleSheet.create({
     padding: 18,
     overflow: "hidden",
     position: "relative",
+    marginTop: 16,
   },
   circleTop: {
     position: "absolute",
