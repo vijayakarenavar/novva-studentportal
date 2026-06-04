@@ -8,10 +8,14 @@ import {
   Animated,
   RefreshControl,
   Platform,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { COLORS, SIZES, SHADOWS } from "../../constants/theme";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 const formatTime12 = (t) => {
   if (!t) return "";
@@ -21,12 +25,44 @@ const formatTime12 = (t) => {
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 };
 
+const useScale = () => {
+  const { width } = useWindowDimensions();
+  return Math.min(Math.max(width / 390, 0.75), 1.25);
+};
+
+// ─── Date Helpers ────────────────────────────────────────────────────────────
+
+const toLocalDateStr = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+
+const getWeekRange = () => {
+  const today = new Date();
+  const dow = today.getDay();
+  const offset = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(today);
+  mon.setDate(today.getDate() + offset);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return { startDate: toLocalDateStr(mon), endDate: toLocalDateStr(sun) };
+};
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
 const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [collegeName, setCollegeName] = useState("");
+  const [todaySlots, setTodaySlots] = useState([]); // ✅ Real timetable slots
+
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const scale = useScale();
+  const rs = (size) => Math.round(size * scale);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -36,12 +72,16 @@ const HomeScreen = ({ navigation }) => {
     fetchDashboard();
   }, []);
 
+  // ✅ FIXED: fetchDashboard now also fetches real timetable slots
   const fetchDashboard = async () => {
     try {
-      // ✅ Dashboard + Profile dono ek saath fetch karto
+      const todayStr = toLocalDateStr(new Date());
+      const { startDate, endDate } = getWeekRange();
+
+      // Step 1: Fetch dashboard + profile in parallel
       const [dashRes, profileRes] = await Promise.allSettled([
         api.get("/dashboard/student"),
-        api.get("/students/my-profile"), // ✅ ProfileScreen jaich API — college.name directly milto
+        api.get("/students/my-profile"),
       ]);
 
       const dashData =
@@ -56,14 +96,110 @@ const HomeScreen = ({ navigation }) => {
 
       if (dashData) setDashboardData(dashData);
 
-      // ✅ College name — saglya possible jaghi check karto
       const name =
-        profileData?.college?.name || // my-profile madhe college object
-        dashData?.college?.name || // dashboard madhe college object
-        dashData?.student?.collegeName || // student madhe collegeName field
-        dashData?.collegeName || // top level
+        profileData?.college?.name ||
+        dashData?.college?.name ||
+        dashData?.student?.collegeName ||
+        dashData?.collegeName ||
         "";
       if (name) setCollegeName(name);
+
+      // Step 2: ✅ Fetch real timetable (same as TimetableScreen)
+      try {
+        const ttRes = await api.get("/timetable/student");
+        const resData = ttRes.data?.data || ttRes.data || {};
+        const allSlots = resData.slots || resData || [];
+
+        if (allSlots?.length) {
+          // Find timetable ID
+          const firstSlot = allSlots.find((s) => s.timetable_id);
+          const tId =
+            typeof firstSlot?.timetable_id === "object"
+              ? firstSlot?.timetable_id?._id
+              : firstSlot?.timetable_id;
+
+          if (tId) {
+            // Fetch schedule for current week
+            const schRes = await api.get(`/timetable/${tId}/schedule`, {
+              params: { startDate, endDate },
+            });
+            const schedule = schRes.data?.schedule || [];
+
+            // Find today's slots from schedule
+            const todaySchedule = schedule.find((d) => d.date === todayStr);
+            if (todaySchedule?.slots?.length) {
+              // Map to HomeScreen-compatible format
+              const mapped = todaySchedule.slots
+                .filter((s) => s.subject_id?.name) // valid slots only
+                .map((s) => ({
+                  ...s,
+                  subject: s.subject_id?.name,
+                  teacher: s.teacher_id?.name,
+                  code: s.subject_id?.code,
+                  room: s.room,
+                  slotType: s.slotType || "LECTURE",
+                  startTime: s.startTime,
+                  endTime: s.endTime,
+                }));
+              setTodaySlots(mapped);
+            } else {
+              // Fallback: use old format filtered by today's day
+              const DAY_MAP = {
+                0: "SUN",
+                1: "MON",
+                2: "TUE",
+                3: "WED",
+                4: "THU",
+                5: "FRI",
+                6: "SAT",
+              };
+              const todayAbbr = DAY_MAP[new Date().getDay()];
+              const fallback = allSlots
+                .filter((s) => s.day === todayAbbr && s.subject_id?.name)
+                .map((s) => ({
+                  ...s,
+                  subject: s.subject_id?.name || s.subject,
+                  teacher: s.teacher_id?.name || s.teacher,
+                  code: s.subject_id?.code || s.code,
+                }));
+              setTodaySlots(fallback);
+            }
+          } else {
+            // Old format — no timetable_id
+            const DAY_MAP = {
+              0: "SUN",
+              1: "MON",
+              2: "TUE",
+              3: "WED",
+              4: "THU",
+              5: "FRI",
+              6: "SAT",
+            };
+            const todayAbbr = DAY_MAP[new Date().getDay()];
+            const fallback = allSlots
+              .filter(
+                (s) => s.day === todayAbbr && (s.subject_id?.name || s.subject),
+              )
+              .map((s) => ({
+                ...s,
+                subject: s.subject_id?.name || s.subject,
+                teacher: s.teacher_id?.name || s.teacher,
+                code: s.subject_id?.code || s.code,
+              }));
+            setTodaySlots(fallback);
+          }
+        } else {
+          // No timetable at all — fallback to dashboard todayTimetable
+          setTodaySlots(dashData?.todayTimetable || []);
+        }
+      } catch (ttErr) {
+        console.warn(
+          "Timetable fetch failed, using dashboard fallback:",
+          ttErr,
+        );
+        // Fallback to dashboard data if timetable API fails
+        setTodaySlots(dashData?.todayTimetable || []);
+      }
     } catch (err) {
       console.error("Dashboard error:", err);
     } finally {
@@ -97,7 +233,6 @@ const HomeScreen = ({ navigation }) => {
     paymentStatus: "NOT_GENERATED",
   };
   const notifications = dashboardData?.latestNotifications || [];
-  const todaySlots = dashboardData?.todayTimetable || [];
 
   const formatCurrency = (amount) =>
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
@@ -105,9 +240,18 @@ const HomeScreen = ({ navigation }) => {
   const getAttColor = (pct) =>
     pct >= 75 ? COLORS.success : pct >= 60 ? COLORS.warning : COLORS.danger;
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={s.loadingContainer}>
+      <View
+        style={[
+          s.loadingContainer,
+          {
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
         <Text style={{ fontSize: 48 }}>🎓</Text>
         <ActivityIndicator
           size="large"
@@ -120,13 +264,30 @@ const HomeScreen = ({ navigation }) => {
   }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const twoCol = isLandscape;
 
   return (
-    <View style={s.root}>
-      {/* ── SCROLL ── */}
+    <View
+      style={[
+        s.root,
+        {
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[
+          s.scrollContent,
+          {
+            paddingHorizontal: rs(12),
+            paddingBottom: insets.bottom + rs(24),
+            paddingTop: rs(8),
+            gap: rs(10),
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -136,176 +297,244 @@ const HomeScreen = ({ navigation }) => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── PREMIUM WELCOME CARD ── */}
-        <View style={s.welcomeCard}>
+        {/* ── WELCOME CARD ── */}
+        <View
+          style={[
+            s.welcomeCard,
+            {
+              borderRadius: rs(20),
+              padding: rs(18),
+              marginTop: rs(8),
+            },
+          ]}
+        >
           <View style={s.circleTop} />
           <View style={s.circleBottom} />
 
-          <View style={s.welcomeRow}>
-            <View style={s.welcomeAvatar}>
-              <Text style={{ fontSize: 26 }}>🎓</Text>
+          <View style={[s.welcomeRow, { gap: rs(14), marginBottom: rs(16) }]}>
+            <View
+              style={[
+                s.welcomeAvatar,
+                { width: rs(52), height: rs(52), borderRadius: rs(14) },
+              ]}
+            >
+              <Text style={{ fontSize: rs(26) }}>🎓</Text>
             </View>
             <View style={s.welcomeInfo}>
-              <Text style={s.welcomeLabel}>Welcome back</Text>
-              <Text style={s.welcomeName} numberOfLines={1}>
+              <Text style={[s.welcomeLabel, { fontSize: rs(11) }]}>
+                Welcome back
+              </Text>
+              <Text
+                style={[s.welcomeName, { fontSize: rs(17) }]}
+                numberOfLines={1}
+              >
                 {student.name || user?.name || "Student"}!
               </Text>
               {student.enrollmentNumber &&
                 student.enrollmentNumber !== "N/A" && (
-                  <Text style={s.enrollText}>
+                  <Text style={[s.enrollText, { fontSize: rs(11) }]}>
                     🪪 {student.enrollmentNumber}
                   </Text>
                 )}
             </View>
           </View>
+
+          {/* Bell button */}
           <TouchableOpacity
-            style={s.bellBtn}
+            style={[
+              s.bellBtn,
+              {
+                top: rs(14),
+                right: rs(14),
+                width: rs(34),
+                height: rs(34),
+                borderRadius: rs(12),
+              },
+            ]}
             activeOpacity={0.7}
             onPress={() => navigation.navigate("Notifications")}
           >
-            <Text style={{ fontSize: 18 }}>🔔</Text>
+            <Text style={{ fontSize: rs(18) }}>🔔</Text>
             {unreadCount > 0 && (
               <View style={s.badge}>
-                <Text style={s.badgeText}>{unreadCount}</Text>
+                <Text style={[s.badgeText, { fontSize: rs(9) }]}>
+                  {unreadCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
 
+          {/* Pay Fees button */}
           <TouchableOpacity
-            style={s.payBtn}
+            style={[
+              s.payBtn,
+              { borderRadius: rs(10), paddingVertical: rs(10) },
+            ]}
             activeOpacity={0.8}
             onPress={navigateToFees}
           >
-            <Text style={s.payBtnText}>💳 Pay Fees</Text>
+            <Text style={[s.payBtnText, { fontSize: rs(13) }]}>
+              💳 Pay Fees
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── ATTENDANCE ── */}
-        <View style={s.sectionCard}>
-          <View style={s.secHead}>
-            <View style={s.secTitleWrap}>
-              <Text style={{ fontSize: 15 }}>📊</Text>
-              <Text style={s.secTitle}>Attendance Summary</Text>
+        {/* ── LANDSCAPE: Attendance + Fees side-by-side ── */}
+        {twoCol ? (
+          <View style={{ flexDirection: "row", gap: rs(10) }}>
+            <View style={[s.sectionCard, { flex: 1 }]}>
+              {renderSectionHeader(
+                "📊",
+                "Attendance Summary",
+                "👁 View All",
+                () => navigation.navigate("Attendance"),
+                rs,
+              )}
+              {renderAttendanceBody(attendance, getAttColor, rs)}
             </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Attendance")}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Text style={s.viewAll}>👁 View All</Text>
-            </TouchableOpacity>
+            <View style={[s.sectionCard, { flex: 1 }]}>
+              {renderSectionHeader(
+                "💰",
+                "Fee Summary",
+                "👁 View Details",
+                navigateToFees,
+                rs,
+              )}
+              {renderFeesBody(feeSummary, formatCurrency, navigateToFees, rs)}
+            </View>
           </View>
-          <View style={s.statsRow}>
-            {[
-              {
-                icon: "✅",
-                val: attendance.present,
-                lbl: "PRESENT",
-                bg: "#d4edda",
-              },
-              {
-                icon: "❌",
-                val: attendance.absent,
-                lbl: "ABSENT",
-                bg: "#f8d7da",
-              },
-              {
-                icon: "🕐",
-                val: attendance.total,
-                lbl: "TOTAL",
-                bg: "#e3f2fd",
-              },
-            ].map(({ icon, val, lbl, bg }) => (
-              <View key={lbl} style={s.stat}>
-                <View style={[s.statIcon, { backgroundColor: bg }]}>
-                  <Text style={{ fontSize: 14 }}>{icon}</Text>
-                </View>
-                <Text style={s.statVal}>{val}</Text>
-                <Text style={s.statLbl}>{lbl}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={s.progWrap}>
-            <Text
-              style={[s.progPct, { color: getAttColor(attendance.percentage) }]}
-            >
-              {attendance.percentage}% Overall Attendance
-            </Text>
-            <View style={s.progTrack}>
-              <View
+        ) : (
+          <>
+            <View style={s.sectionCard}>
+              {renderSectionHeader(
+                "📊",
+                "Attendance Summary",
+                "👁 View All",
+                () => navigation.navigate("Attendance"),
+                rs,
+              )}
+              {renderAttendanceBody(attendance, getAttColor, rs)}
+            </View>
+            <View style={s.sectionCard}>
+              {renderSectionHeader(
+                "💰",
+                "Fee Summary",
+                "👁 View Details",
+                navigateToFees,
+                rs,
+              )}
+              {renderFeesBody(feeSummary, formatCurrency, navigateToFees, rs)}
+            </View>
+          </>
+        )}
+
+        {/* ── TODAY'S CLASSES ── ✅ Now uses real timetable data */}
+        <View style={s.sectionCard}>
+          {renderSectionHeader(
+            "📅",
+            "Today's Classes",
+            "📋 Full Timetable",
+            () => navigation.navigate("Timetable"),
+            rs,
+          )}
+          {todaySlots.length === 0 ? (
+            <View style={[s.emptyBox, { paddingVertical: rs(20) }]}>
+              <Text style={{ fontSize: rs(32), marginBottom: rs(6) }}>☀️</Text>
+              <Text style={[s.emptyText, { fontSize: rs(13) }]}>
+                No classes today
+              </Text>
+              <TouchableOpacity
                 style={[
-                  s.progFill,
+                  s.viewTTBtn,
                   {
-                    width: `${Math.min(attendance.percentage, 100)}%`,
-                    backgroundColor: getAttColor(attendance.percentage),
+                    paddingHorizontal: rs(16),
+                    paddingVertical: rs(8),
+                    borderRadius: rs(8),
                   },
                 ]}
-              />
-            </View>
-            <Text style={s.progMin}>75% Min</Text>
-          </View>
-          {attendance.warning && (
-            <View style={s.warnBox}>
-              <Text style={s.warnText}>
-                ⚠ Low Attendance! Minimum 75% required for exam eligibility.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* ── TODAY'S CLASSES ── */}
-        <View style={s.sectionCard}>
-          <View style={s.secHead}>
-            <View style={s.secTitleWrap}>
-              <Text style={{ fontSize: 15 }}>📅</Text>
-              <Text style={s.secTitle}>Today's Classes</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Timetable")}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Text style={s.viewAll}>📋 Full Timetable</Text>
-            </TouchableOpacity>
-          </View>
-          {todaySlots.length === 0 ? (
-            <View style={s.emptyBox}>
-              <Text style={{ fontSize: 32, marginBottom: 6 }}>☀️</Text>
-              <Text style={s.emptyText}>No classes today</Text>
-              <TouchableOpacity
-                style={s.viewTTBtn}
                 onPress={() => navigation.navigate("Timetable")}
               >
-                <Text style={s.viewTTText}>📅 View Full Timetable →</Text>
+                <Text style={[s.viewTTText, { fontSize: rs(12) }]}>
+                  📅 View Full Timetable →
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <>
               {todaySlots.slice(0, 3).map((slot, i) => (
-                <View key={i} style={s.slot}>
-                  <View style={s.slotTimeBox}>
-                    <Text style={s.slotTimeText}>
+                <View
+                  key={slot._id || i}
+                  style={[
+                    s.slot,
+                    { padding: rs(12), paddingHorizontal: rs(14) },
+                  ]}
+                >
+                  <View
+                    style={[
+                      s.slotTimeBox,
+                      {
+                        borderRadius: rs(6),
+                        paddingHorizontal: rs(8),
+                        paddingVertical: rs(3),
+                        marginBottom: rs(6),
+                      },
+                    ]}
+                  >
+                    <Text style={[s.slotTimeText, { fontSize: rs(11) }]}>
                       🕐 {formatTime12(slot.startTime)} –{" "}
                       {formatTime12(slot.endTime)}
                     </Text>
                   </View>
-                  <Text style={s.slotSubject} numberOfLines={1}>
-                    {slot.subject || "—"}
+                  <Text
+                    style={[
+                      s.slotSubject,
+                      { fontSize: rs(14), marginBottom: rs(4) },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {slot.subject || slot.subject_id?.name || "—"}
                   </Text>
-                  <View style={s.slotMeta}>
-                    <View style={s.slotBadge}>
-                      <Text style={s.slotBadgeText}>
+                  <View
+                    style={[s.slotMeta, { gap: rs(5), marginBottom: rs(4) }]}
+                  >
+                    <View
+                      style={[
+                        s.slotBadge,
+                        {
+                          borderRadius: rs(4),
+                          paddingHorizontal: rs(8),
+                          paddingVertical: rs(2),
+                        },
+                      ]}
+                    >
+                      <Text style={[s.slotBadgeText, { fontSize: rs(9) }]}>
                         {slot.slotType || "LECTURE"}
                       </Text>
                     </View>
                     {slot.code ? (
-                      <Text style={s.slotCode}>{slot.code}</Text>
+                      <Text
+                        style={[
+                          s.slotCode,
+                          {
+                            fontSize: rs(10),
+                            paddingHorizontal: rs(5),
+                            paddingVertical: rs(2),
+                            borderRadius: rs(3),
+                          },
+                        ]}
+                      >
+                        {slot.code}
+                      </Text>
                     ) : null}
                   </View>
-                  <View style={s.slotInfo}>
-                    <Text style={s.slotInfoItem}>
-                      👨‍🏫 {slot.teacher || "TBA"}
+                  <View style={[s.slotInfo, { gap: rs(10) }]}>
+                    <Text style={[s.slotInfoItem, { fontSize: rs(11) }]}>
+                      👨‍🏫 {slot.teacher || slot.teacher_id?.name || "TBA"}
                     </Text>
                     {slot.room ? (
-                      <Text style={s.slotInfoItem}>📍 Room {slot.room}</Text>
+                      <Text style={[s.slotInfoItem, { fontSize: rs(11) }]}>
+                        📍 Room {slot.room}
+                      </Text>
                     ) : null}
                   </View>
                 </View>
@@ -315,7 +544,7 @@ const HomeScreen = ({ navigation }) => {
                   style={s.showMore}
                   onPress={() => navigation.navigate("Timetable")}
                 >
-                  <Text style={s.showMoreText}>
+                  <Text style={[s.showMoreText, { fontSize: rs(12) }]}>
                     +{todaySlots.length - 3} more classes → View All
                   </Text>
                 </TouchableOpacity>
@@ -324,127 +553,65 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* ── FEE SUMMARY ── */}
-        <View style={s.sectionCard}>
-          <View style={s.secHead}>
-            <View style={s.secTitleWrap}>
-              <Text style={{ fontSize: 15 }}>💰</Text>
-              <Text style={s.secTitle}>Fee Summary</Text>
-            </View>
-            <TouchableOpacity
-              onPress={navigateToFees}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Text style={s.viewAll}>👁 View Details</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={s.feeRow}>
-            {[
-              {
-                lbl: "Total Fee",
-                val: formatCurrency(feeSummary.totalFee),
-                color: COLORS.text,
-              },
-              {
-                lbl: "Paid",
-                val: formatCurrency(feeSummary.paid),
-                color: COLORS.success,
-              },
-              {
-                lbl: "Due",
-                val: formatCurrency(feeSummary.due),
-                color: COLORS.danger,
-              },
-            ].map(({ lbl, val, color }) => (
-              <View key={lbl} style={s.feeStat}>
-                <Text style={s.feeLbl}>{lbl}</Text>
-                <Text style={[s.feeVal, { color }]}>{val}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={s.feeStatusRow}>
-            <View
-              style={[
-                s.feeStatusBadge,
-                {
-                  backgroundColor:
-                    feeSummary.paymentStatus === "PAID"
-                      ? COLORS.success
-                      : feeSummary.paymentStatus === "PARTIAL"
-                        ? "#fff3cd"
-                        : COLORS.danger,
-                  borderWidth: feeSummary.paymentStatus === "PARTIAL" ? 1 : 0,
-                  borderColor:
-                    feeSummary.paymentStatus === "PARTIAL"
-                      ? "#ffc107"
-                      : "transparent",
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  s.feeStatusText,
-                  {
-                    color:
-                      feeSummary.paymentStatus === "PARTIAL"
-                        ? "#856404"
-                        : COLORS.white,
-                  },
-                ]}
-              >
-                {feeSummary.paymentStatus}
-              </Text>
-            </View>
-          </View>
-          {feeSummary.paymentStatus !== "PAID" && (
-            <TouchableOpacity
-              style={s.payNowBtn}
-              activeOpacity={0.8}
-              onPress={navigateToFees}
-            >
-              <Text style={s.payNowText}>₹ Pay Now</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
         {/* ── NOTIFICATIONS ── */}
-        <View style={[s.sectionCard, { marginBottom: 24 }]}>
-          <View style={s.secHead}>
-            <View style={s.secTitleWrap}>
-              <Text style={{ fontSize: 15 }}>🔔</Text>
-              <Text style={s.secTitle}>Latest Notifications</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Notifications")}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Text style={s.viewAll}>👁 View All</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={s.sectionCard}>
+          {renderSectionHeader(
+            "🔔",
+            "Latest Notifications",
+            "👁 View All",
+            () => navigation.navigate("Notifications"),
+            rs,
+          )}
           {notifications.length === 0 ? (
-            <View style={s.emptyBox}>
-              <Text style={{ fontSize: 32, marginBottom: 6 }}>🔔</Text>
-              <Text style={s.emptyText}>No new notifications</Text>
+            <View style={[s.emptyBox, { paddingVertical: rs(20) }]}>
+              <Text style={{ fontSize: rs(32), marginBottom: rs(6) }}>🔔</Text>
+              <Text style={[s.emptyText, { fontSize: rs(13) }]}>
+                No new notifications
+              </Text>
             </View>
           ) : (
             notifications.slice(0, 3).map((notif, i) => (
               <View
                 key={notif._id || i}
-                style={[s.notifItem, !notif.isRead && s.notifUnread]}
+                style={[
+                  s.notifItem,
+                  { gap: rs(10), padding: rs(12), paddingHorizontal: rs(14) },
+                  !notif.isRead && s.notifUnread,
+                ]}
               >
-                <View style={s.notifIconWrap}>
-                  <Text style={{ fontSize: 14 }}>🔔</Text>
+                <View
+                  style={[
+                    s.notifIconWrap,
+                    { width: rs(32), height: rs(32), borderRadius: rs(8) },
+                  ]}
+                >
+                  <Text style={{ fontSize: rs(14) }}>🔔</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.notifTitle}>{notif.title}</Text>
-                  <Text style={s.notifMsg} numberOfLines={2}>
+                  <Text
+                    style={[
+                      s.notifTitle,
+                      { fontSize: rs(12), marginBottom: rs(2) },
+                    ]}
+                  >
+                    {notif.title}
+                  </Text>
+                  <Text
+                    style={[
+                      s.notifMsg,
+                      { fontSize: rs(11), marginBottom: rs(4) },
+                    ]}
+                    numberOfLines={2}
+                  >
                     {notif.message}
                   </Text>
                   <View style={s.notifMeta}>
                     <View style={s.notifTypeBadge}>
-                      <Text style={s.notifTypeText}>{notif.type}</Text>
+                      <Text style={[s.notifTypeText, { fontSize: rs(9) }]}>
+                        {notif.type}
+                      </Text>
                     </View>
-                    <Text style={s.notifDate}>
+                    <Text style={[s.notifDate, { fontSize: rs(9) }]}>
                       {new Date(notif.createdAt).toLocaleDateString("en-IN", {
                         day: "numeric",
                         month: "short",
@@ -462,6 +629,212 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
+// ─── Pure render helpers ─────────────────────────────────────────────────────
+
+function renderSectionHeader(icon, title, actionLabel, onPress, rs) {
+  return (
+    <View style={[s.secHead, { padding: rs(10), paddingHorizontal: rs(14) }]}>
+      <View style={[s.secTitleWrap, { gap: rs(6) }]}>
+        <Text style={{ fontSize: rs(15) }}>{icon}</Text>
+        <Text style={[s.secTitle, { fontSize: rs(13) }]}>{title}</Text>
+      </View>
+      <TouchableOpacity
+        onPress={onPress}
+        hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+      >
+        <Text style={[s.viewAll, { fontSize: rs(11) }]}>{actionLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function renderAttendanceBody(attendance, getAttColor, rs) {
+  return (
+    <>
+      <View style={[s.statsRow, { padding: rs(12), gap: rs(8) }]}>
+        {[
+          {
+            icon: "✅",
+            val: attendance.present,
+            lbl: "PRESENT",
+            bg: "#d4edda",
+          },
+          { icon: "❌", val: attendance.absent, lbl: "ABSENT", bg: "#f8d7da" },
+          { icon: "🕐", val: attendance.total, lbl: "TOTAL", bg: "#e3f2fd" },
+        ].map(({ icon, val, lbl, bg }) => (
+          <View
+            key={lbl}
+            style={[s.stat, { borderRadius: rs(10), padding: rs(10) }]}
+          >
+            <View
+              style={[
+                s.statIcon,
+                {
+                  backgroundColor: bg,
+                  width: rs(32),
+                  height: rs(32),
+                  borderRadius: rs(8),
+                  marginBottom: rs(6),
+                },
+              ]}
+            >
+              <Text style={{ fontSize: rs(14) }}>{icon}</Text>
+            </View>
+            <Text style={[s.statVal, { fontSize: rs(20) }]}>{val}</Text>
+            <Text style={[s.statLbl, { fontSize: rs(9), marginTop: rs(2) }]}>
+              {lbl}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <View
+        style={[
+          s.progWrap,
+          { paddingHorizontal: rs(14), paddingBottom: rs(14) },
+        ]}
+      >
+        <Text
+          style={[
+            s.progPct,
+            {
+              fontSize: rs(12),
+              marginBottom: rs(6),
+              color: getAttColor(attendance.percentage),
+            },
+          ]}
+        >
+          {attendance.percentage}% Overall Attendance
+        </Text>
+        <View style={[s.progTrack, { height: rs(10), borderRadius: rs(5) }]}>
+          <View
+            style={[
+              s.progFill,
+              {
+                width: `${Math.min(attendance.percentage, 100)}%`,
+                backgroundColor: getAttColor(attendance.percentage),
+                borderRadius: rs(5),
+              },
+            ]}
+          />
+        </View>
+        <Text style={[s.progMin, { fontSize: rs(9), marginTop: rs(3) }]}>
+          75% Min
+        </Text>
+      </View>
+      {attendance.warning && (
+        <View
+          style={[
+            s.warnBox,
+            {
+              marginHorizontal: rs(14),
+              marginBottom: rs(12),
+              borderRadius: rs(8),
+              padding: rs(8),
+            },
+          ]}
+        >
+          <Text style={[s.warnText, { fontSize: rs(11) }]}>
+            ⚠ Low Attendance! Minimum 75% required for exam eligibility.
+          </Text>
+        </View>
+      )}
+    </>
+  );
+}
+
+function renderFeesBody(feeSummary, formatCurrency, navigateToFees, rs) {
+  return (
+    <>
+      <View style={[s.feeRow, { padding: rs(12), gap: rs(8) }]}>
+        {[
+          {
+            lbl: "Total Fee",
+            val: formatCurrency(feeSummary.totalFee),
+            color: COLORS.text,
+          },
+          {
+            lbl: "Paid",
+            val: formatCurrency(feeSummary.paid),
+            color: COLORS.success,
+          },
+          {
+            lbl: "Due",
+            val: formatCurrency(feeSummary.due),
+            color: COLORS.danger,
+          },
+        ].map(({ lbl, val, color }) => (
+          <View
+            key={lbl}
+            style={[s.feeStat, { borderRadius: rs(8), padding: rs(10) }]}
+          >
+            <Text style={[s.feeLbl, { fontSize: rs(10), marginBottom: rs(3) }]}>
+              {lbl}
+            </Text>
+            <Text style={[s.feeVal, { fontSize: rs(13), color }]}>{val}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[s.feeStatusRow, { paddingBottom: rs(8) }]}>
+        <View
+          style={[
+            s.feeStatusBadge,
+            {
+              paddingHorizontal: rs(16),
+              paddingVertical: rs(4),
+              borderRadius: rs(20),
+              backgroundColor:
+                feeSummary.paymentStatus === "PAID"
+                  ? COLORS.success
+                  : feeSummary.paymentStatus === "PARTIAL"
+                    ? "#fff3cd"
+                    : COLORS.danger,
+              borderWidth: feeSummary.paymentStatus === "PARTIAL" ? 1 : 0,
+              borderColor:
+                feeSummary.paymentStatus === "PARTIAL"
+                  ? "#ffc107"
+                  : "transparent",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              s.feeStatusText,
+              {
+                fontSize: rs(11),
+                color:
+                  feeSummary.paymentStatus === "PARTIAL"
+                    ? "#856404"
+                    : COLORS.white,
+              },
+            ]}
+          >
+            {feeSummary.paymentStatus}
+          </Text>
+        </View>
+      </View>
+      {feeSummary.paymentStatus !== "PAID" && (
+        <TouchableOpacity
+          style={[
+            s.payNowBtn,
+            {
+              marginHorizontal: rs(14),
+              marginBottom: rs(14),
+              borderRadius: rs(8),
+              paddingVertical: rs(12),
+            },
+          ]}
+          activeOpacity={0.8}
+          onPress={navigateToFees}
+        >
+          <Text style={[s.payNowText, { fontSize: rs(14) }]}>₹ Pay Now</Text>
+        </TouchableOpacity>
+      )}
+    </>
+  );
+}
+
+// ─── StyleSheet ──────────────────────────────────────────────────────────────
+
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   loadingContainer: {
@@ -471,45 +844,12 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   loadingText: { marginTop: 12, color: COLORS.textSecondary, fontSize: 14 },
+  scrollContent: { flexGrow: 1 },
 
-  bellBtn: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: -3,
-    right: -3,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.danger,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: COLORS.white,
-  },
-  badgeText: { color: COLORS.white, fontSize: 9, fontWeight: "700" },
-
-  scrollContent: { padding: 12, gap: 10 },
-
-  /* WELCOME CARD */
   welcomeCard: {
     backgroundColor: "#1a4b6d",
-    borderRadius: 20,
-    padding: 18,
     overflow: "hidden",
     position: "relative",
-    marginTop: 16,
   },
   circleTop: {
     position: "absolute",
@@ -529,16 +869,8 @@ const s = StyleSheet.create({
     borderRadius: 45,
     backgroundColor: "rgba(255,255,255,0.04)",
   },
-  welcomeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 16,
-  },
+  welcomeRow: { flexDirection: "row", alignItems: "center" },
   welcomeAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.15)",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.25)",
@@ -548,67 +880,43 @@ const s = StyleSheet.create({
   },
   welcomeInfo: { flex: 1 },
   welcomeLabel: {
-    fontSize: 11,
     color: "rgba(255,255,255,0.6)",
     letterSpacing: 0.5,
     marginBottom: 2,
   },
-  welcomeName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  enrollText: { fontSize: 11, color: "rgba(255,255,255,0.55)" },
+  welcomeName: { fontWeight: "700", color: "#fff", marginBottom: 4 },
+  enrollText: { color: "rgba(255,255,255,0.55)" },
   payBtn: {
     backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.3)",
-    borderRadius: 10,
-    paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  payBtnText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-
-  /* INFO CARDS */
-  infoRow: { flexDirection: "row" },
-  infoCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    ...SHADOWS.small,
-  },
-  infoIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  payBtnText: { color: "#fff", fontWeight: "700", letterSpacing: 0.3 },
+  bellBtn: {
+    position: "absolute",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
   },
-  infoVal: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: 3,
+  badge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
   },
-  infoLbl: {
-    fontSize: 10,
-    color: COLORS.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
+  badgeText: { color: COLORS.white, fontWeight: "700" },
 
-  /* SECTION CARD */
   sectionCard: {
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radiusLg,
@@ -621,179 +929,65 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 10,
-    paddingHorizontal: 14,
     backgroundColor: "#f8fafc",
     borderBottomWidth: 0.5,
     borderBottomColor: "#f0f4f8",
   },
-  secTitleWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-  secTitle: { fontSize: 13, fontWeight: "700", color: COLORS.primary },
-  viewAll: { fontSize: 11, color: COLORS.primary, fontWeight: "600" },
+  secTitleWrap: { flexDirection: "row", alignItems: "center" },
+  secTitle: { fontWeight: "700", color: COLORS.primary },
+  viewAll: { color: COLORS.primary, fontWeight: "600" },
 
-  /* ATTENDANCE */
-  statsRow: { flexDirection: "row", padding: 12, gap: 8 },
-  stat: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    padding: 10,
-    alignItems: "center",
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  statVal: { fontSize: 20, fontWeight: "700", color: COLORS.text },
+  statsRow: { flexDirection: "row" },
+  stat: { flex: 1, backgroundColor: "#f8fafc", alignItems: "center" },
+  statIcon: { alignItems: "center", justifyContent: "center" },
+  statVal: { fontWeight: "700", color: COLORS.text },
   statLbl: {
-    fontSize: 9,
     color: COLORS.textMuted,
     letterSpacing: 0.5,
-    marginTop: 2,
     fontWeight: "600",
+    textTransform: "uppercase",
   },
-  progWrap: { paddingHorizontal: 14, paddingBottom: 14 },
-  progPct: {
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  progTrack: {
-    height: 10,
-    backgroundColor: "#f0f4f8",
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  progFill: { height: "100%", borderRadius: 5 },
-  progMin: {
-    fontSize: 9,
-    color: COLORS.danger,
-    textAlign: "right",
-    marginTop: 3,
-    fontWeight: "600",
-  },
-  warnBox: {
-    marginHorizontal: 14,
-    marginBottom: 12,
-    backgroundColor: COLORS.warningLight,
-    borderRadius: 8,
-    padding: 8,
-  },
-  warnText: {
-    fontSize: 11,
-    color: "#856404",
-    fontWeight: "600",
-    textAlign: "center",
-  },
+  progWrap: {},
+  progPct: { fontWeight: "700", textAlign: "center" },
+  progTrack: { backgroundColor: "#f0f4f8", overflow: "hidden" },
+  progFill: { height: "100%" },
+  progMin: { color: COLORS.danger, textAlign: "right", fontWeight: "600" },
+  warnBox: { backgroundColor: COLORS.warningLight },
+  warnText: { color: "#856404", fontWeight: "600", textAlign: "center" },
 
-  /* TIMETABLE */
-  slot: {
-    padding: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#f0f4f8",
-  },
-  slotTimeBox: {
-    alignSelf: "flex-start",
-    backgroundColor: "#e3f2fd",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginBottom: 6,
-  },
-  slotTimeText: { fontSize: 11, fontWeight: "600", color: "#1a4b6d" },
-  slotSubject: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  slotMeta: {
-    flexDirection: "row",
-    gap: 5,
-    alignItems: "center",
-    marginBottom: 4,
-    flexWrap: "wrap",
-  },
-  slotBadge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  slotBadgeText: {
-    color: COLORS.white,
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-  slotCode: {
-    fontSize: 10,
-    color: COLORS.textMuted,
-    backgroundColor: "#f0f4f8",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 3,
-  },
-  slotInfo: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  slotInfoItem: { fontSize: 11, color: COLORS.textSecondary },
+  slot: { borderBottomWidth: 0.5, borderBottomColor: "#f0f4f8" },
+  slotTimeBox: { alignSelf: "flex-start", backgroundColor: "#e3f2fd" },
+  slotTimeText: { fontWeight: "600", color: "#1a4b6d" },
+  slotSubject: { fontWeight: "700", color: COLORS.text },
+  slotMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  slotBadge: { backgroundColor: COLORS.primary },
+  slotBadgeText: { color: COLORS.white, fontWeight: "700", letterSpacing: 0.3 },
+  slotCode: { color: COLORS.textMuted, backgroundColor: "#f0f4f8" },
+  slotInfo: { flexDirection: "row", flexWrap: "wrap" },
+  slotInfoItem: { color: COLORS.textSecondary },
   showMore: { padding: 10, alignItems: "center", backgroundColor: "#f8fafc" },
-  showMoreText: { fontSize: 12, color: COLORS.primary, fontWeight: "600" },
-  emptyBox: { alignItems: "center", paddingVertical: 20 },
-  emptyText: { fontSize: 13, color: COLORS.textMuted, marginBottom: 10 },
-  viewTTBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  viewTTText: { color: COLORS.white, fontWeight: "700", fontSize: 12 },
+  showMoreText: { color: COLORS.primary, fontWeight: "600" },
+  emptyBox: { alignItems: "center" },
+  emptyText: { color: COLORS.textMuted, marginBottom: 10 },
+  viewTTBtn: { backgroundColor: COLORS.primary },
+  viewTTText: { color: COLORS.white, fontWeight: "700" },
 
-  /* FEES */
-  feeRow: { flexDirection: "row", padding: 12, gap: 8 },
-  feeStat: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-    padding: 10,
-    alignItems: "center",
-  },
+  feeRow: { flexDirection: "row" },
+  feeStat: { flex: 1, backgroundColor: "#f8fafc", alignItems: "center" },
   feeLbl: {
-    fontSize: 10,
     color: COLORS.textMuted,
-    marginBottom: 3,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  feeVal: { fontSize: 13, fontWeight: "700" },
-  feeStatusRow: { alignItems: "center", paddingBottom: 8 },
-  feeStatusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  feeStatusText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.3 },
-  payNowBtn: {
-    marginHorizontal: 14,
-    marginBottom: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  payNowText: { color: COLORS.white, fontWeight: "700", fontSize: 14 },
+  feeVal: { fontWeight: "700" },
+  feeStatusRow: { alignItems: "center" },
+  feeStatusBadge: {},
+  feeStatusText: { fontWeight: "700", letterSpacing: 0.3 },
+  payNowBtn: { backgroundColor: COLORS.primary, alignItems: "center" },
+  payNowText: { color: COLORS.white, fontWeight: "700" },
 
-  /* NOTIFICATIONS */
   notifItem: {
     flexDirection: "row",
-    gap: 10,
-    padding: 12,
-    paddingHorizontal: 14,
     borderBottomWidth: 0.5,
     borderBottomColor: "#f0f4f8",
   },
@@ -803,9 +997,6 @@ const s = StyleSheet.create({
     borderLeftColor: COLORS.primary,
   },
   notifIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
     backgroundColor: COLORS.white,
     borderWidth: 0.5,
     borderColor: COLORS.border,
@@ -813,18 +1004,8 @@ const s = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  notifTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  notifMsg: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    lineHeight: 16,
-    marginBottom: 4,
-  },
+  notifTitle: { fontWeight: "700", color: COLORS.text },
+  notifMsg: { color: COLORS.textSecondary, lineHeight: 16 },
   notifMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -837,12 +1018,11 @@ const s = StyleSheet.create({
     paddingVertical: 1,
   },
   notifTypeText: {
-    fontSize: 9,
     color: COLORS.textSecondary,
     fontWeight: "600",
     letterSpacing: 0.3,
   },
-  notifDate: { fontSize: 9, color: COLORS.textMuted },
+  notifDate: { color: COLORS.textMuted },
 });
 
 export default HomeScreen;

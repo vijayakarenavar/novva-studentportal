@@ -5,20 +5,32 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { FontAwesome } from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get("window");
+// ─── RESPONSIVE SCALE ────────────────────────────────────────────────────────
+const BASE_WIDTH = 390;
+const useScale = () => {
+  const { width } = useWindowDimensions();
+  const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), 1.25);
+  return (size) => Math.round(size * scale);
+};
 
 const LoginScreen = ({ navigation }) => {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const rs = useScale();
+
+  const isLandscape = width > height;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,16 +102,60 @@ const LoginScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.root}
+      style={[
+        styles.root,
+        {
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
     >
-      <View style={styles.bg}>
-        <View style={styles.bgOrb1} />
-        <View style={styles.bgOrb2} />
-        <View style={styles.bgOrb3} />
+      {/* Background orbs — dynamic width/height, landscape-safe */}
+      <View style={StyleSheet.absoluteFill}>
+        <View
+          style={[
+            styles.bgOrb1,
+            {
+              width: width * 0.9,
+              height: width * 0.9,
+              borderRadius: width * 0.45,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.bgOrb2,
+            {
+              width: width * 0.8,
+              height: width * 0.8,
+              borderRadius: width * 0.4,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.bgOrb3,
+            {
+              width: width * 0.55,
+              height: width * 0.55,
+              borderRadius: width * 0.275,
+              top: height * 0.4,
+              left: width * 0.3,
+            },
+          ]}
+        />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + rs(24),
+            paddingBottom: insets.bottom + rs(24),
+            paddingHorizontal: isLandscape ? rs(48) : rs(20),
+            justifyContent: isLandscape ? "flex-start" : "center",
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -109,105 +165,230 @@ const LoginScreen = ({ navigation }) => {
             {
               opacity: fadeAnim,
               transform: [{ translateY: cardTranslate }],
+              maxWidth: isLandscape ? rs(520) : rs(400),
+              padding: rs(28),
+              borderRadius: rs(24),
             },
           ]}
         >
-          <View style={styles.formIcon}>
-            <Text style={styles.formIconText}>👤</Text>
+          <View
+            style={[
+              styles.formIcon,
+              {
+                width: rs(42),
+                height: rs(42),
+                borderRadius: rs(13),
+                marginBottom: rs(12),
+              },
+            ]}
+          >
+            <Text style={{ fontSize: rs(20) }}>👤</Text>
           </View>
 
-          <Text style={styles.formTitle}>Sign In</Text>
-          <Text style={styles.formSub}>Enter your credentials to continue</Text>
+          <Text
+            style={[
+              styles.formTitle,
+              { fontSize: rs(24), marginBottom: rs(4) },
+            ]}
+          >
+            Sign In
+          </Text>
+          <Text
+            style={[styles.formSub, { fontSize: rs(13), marginBottom: rs(16) }]}
+          >
+            Enter your credentials to continue
+          </Text>
 
-          <View style={styles.secureBadge}>
-            <View style={styles.secureBadgeInner}>
-              <Text style={styles.secureBadgeText}>🔒 SECURE LOGIN</Text>
+          <View style={[styles.secureBadge, { marginBottom: rs(20) }]}>
+            <View
+              style={[
+                styles.secureBadgeInner,
+                {
+                  paddingHorizontal: rs(14),
+                  paddingVertical: rs(5),
+                  borderRadius: rs(100),
+                },
+              ]}
+            >
+              <Text style={[styles.secureBadgeText, { fontSize: rs(10) }]}>
+                🔒 SECURE LOGIN
+              </Text>
             </View>
           </View>
 
           {error ? (
-            <View style={styles.alertError}>
-              <Text style={styles.alertText}>⚠ {error}</Text>
+            <View
+              style={[
+                styles.alertError,
+                {
+                  borderRadius: rs(10),
+                  padding: rs(12),
+                  marginBottom: rs(16),
+                },
+              ]}
+            >
+              <Text style={[styles.alertText, { fontSize: rs(13) }]}>
+                ⚠ {error}
+              </Text>
               <TouchableOpacity
                 onPress={() => setError("")}
-                style={styles.alertClose}
+                style={{ padding: rs(4) }}
               >
-                <Text style={styles.alertCloseText}>✕</Text>
+                <Text style={[styles.alertCloseText, { fontSize: rs(14) }]}>
+                  ✕
+                </Text>
               </TouchableOpacity>
             </View>
           ) : null}
 
-          <View style={styles.fieldGroup}>
-            <Text
-              style={[
-                styles.label,
-                focusedField === "email" && styles.labelFocus,
-              ]}
-            >
-              ✉ EMAIL ADDRESS
-            </Text>
-            <View
-              style={[
-                styles.inputWrap,
-                focusedField === "email" && styles.inputWrapFocus,
-              ]}
-            >
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#94b4c8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                onFocus={() => setFocusedField("email")}
-                onBlur={() => setFocusedField("")}
-              />
+          {/* Landscape: 2-column form */}
+          {isLandscape ? (
+            <View style={[styles.twoColForm, { gap: rs(12) }]}>
+              <View style={{ flex: 1 }}>
+                <FieldGroup
+                  label="✉ EMAIL ADDRESS"
+                  focused={focusedField === "email"}
+                  rs={rs}
+                >
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        paddingHorizontal: rs(14),
+                        paddingVertical: rs(11),
+                        fontSize: rs(14),
+                      },
+                    ]}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="you@example.com"
+                    placeholderTextColor="#94b4c8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    onFocus={() => setFocusedField("email")}
+                    onBlur={() => setFocusedField("")}
+                  />
+                </FieldGroup>
+              </View>
+              <View style={{ flex: 1 }}>
+                <FieldGroup
+                  label="🔒 PASSWORD"
+                  focused={focusedField === "password"}
+                  rs={rs}
+                  row
+                >
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        paddingHorizontal: rs(14),
+                        paddingVertical: rs(11),
+                        fontSize: rs(14),
+                      },
+                    ]}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••••"
+                    placeholderTextColor="#94b4c8"
+                    secureTextEntry={!showPassword}
+                    onFocus={() => setFocusedField("password")}
+                    onBlur={() => setFocusedField("")}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={{
+                      paddingHorizontal: rs(12),
+                      paddingVertical: rs(11),
+                    }}
+                  >
+                    <FontAwesome
+                      name={showPassword ? "eye" : "eye-slash"}
+                      size={rs(16)}
+                      color="#4a6577"
+                    />
+                  </TouchableOpacity>
+                </FieldGroup>
+              </View>
             </View>
-            {focusedField === "email" && <View style={styles.inputBar} />}
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text
-              style={[
-                styles.label,
-                focusedField === "password" && styles.labelFocus,
-              ]}
-            >
-              🔒 PASSWORD
-            </Text>
-            <View
-              style={[
-                styles.inputWrap,
-                focusedField === "password" && styles.inputWrapFocus,
-              ]}
-            >
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••••"
-                placeholderTextColor="#94b4c8"
-                secureTextEntry={!showPassword}
-                onFocus={() => setFocusedField("password")}
-                onBlur={() => setFocusedField("")}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
+          ) : (
+            <>
+              <FieldGroup
+                label="✉ EMAIL ADDRESS"
+                focused={focusedField === "email"}
+                rs={rs}
               >
-                <FontAwesome
-                  name={showPassword ? "eye" : "eye-slash"}
-                  size={16}
-                  color="#4a6577"
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      paddingHorizontal: rs(14),
+                      paddingVertical: rs(11),
+                      fontSize: rs(14),
+                    },
+                  ]}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor="#94b4c8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  onFocus={() => setFocusedField("email")}
+                  onBlur={() => setFocusedField("")}
                 />
-              </TouchableOpacity>
-            </View>
-            {focusedField === "password" && <View style={styles.inputBar} />}
-          </View>
+              </FieldGroup>
+
+              <FieldGroup
+                label="🔒 PASSWORD"
+                focused={focusedField === "password"}
+                rs={rs}
+                row
+              >
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      paddingHorizontal: rs(14),
+                      paddingVertical: rs(11),
+                      fontSize: rs(14),
+                    },
+                  ]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••••"
+                  placeholderTextColor="#94b4c8"
+                  secureTextEntry={!showPassword}
+                  onFocus={() => setFocusedField("password")}
+                  onBlur={() => setFocusedField("")}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{
+                    paddingHorizontal: rs(12),
+                    paddingVertical: rs(11),
+                  }}
+                >
+                  <FontAwesome
+                    name={showPassword ? "eye" : "eye-slash"}
+                    size={rs(16)}
+                    color="#4a6577"
+                  />
+                </TouchableOpacity>
+              </FieldGroup>
+            </>
+          )}
 
           <TouchableOpacity
-            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            style={[
+              styles.submitBtn,
+              loading && styles.submitBtnDisabled,
+              {
+                borderRadius: rs(12),
+                paddingVertical: rs(14),
+                marginTop: rs(6),
+              },
+            ]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.85}
@@ -215,23 +396,29 @@ const LoginScreen = ({ navigation }) => {
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.submitText}>Sign In →</Text>
+              <Text style={[styles.submitText, { fontSize: rs(15) }]}>
+                Sign In →
+              </Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.forgotBtn}
+            style={[styles.forgotBtn, { paddingVertical: rs(12) }]}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            <Text style={styles.forgotText}>🔒 Forgot Password?</Text>
+            <Text style={[styles.forgotText, { fontSize: rs(13) }]}>
+              🔒 Forgot Password?
+            </Text>
           </TouchableOpacity>
 
-          <View style={styles.footerDivider} />
+          <View style={[styles.footerDivider, { marginBottom: rs(14) }]} />
 
           <View style={styles.footer}>
             <View style={styles.securityBadge}>
               <View style={styles.securityDot} />
-              <Text style={styles.securityText}>Secured by NOVAA</Text>
+              <Text style={[styles.securityText, { fontSize: rs(10) }]}>
+                Secured by NOVAA
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -240,58 +427,64 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
+// ─── FIELD GROUP HELPER ──────────────────────────────────────────────────────
+function FieldGroup({ label, focused, rs, row, children }) {
+  return (
+    <View style={{ marginBottom: rs(16) }}>
+      <Text
+        style={[
+          styles.label,
+          focused && styles.labelFocus,
+          { fontSize: rs(10), marginBottom: rs(7) },
+        ]}
+      >
+        {label}
+      </Text>
+      <View
+        style={[
+          styles.inputWrap,
+          focused && styles.inputWrapFocus,
+          { borderRadius: rs(10) },
+          row && { flexDirection: "row", alignItems: "center" },
+        ]}
+      >
+        {children}
+      </View>
+      {focused && (
+        <View style={[styles.inputBar, { height: rs(2), marginTop: rs(2) }]} />
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#060e17",
   },
-  bg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   bgOrb1: {
     position: "absolute",
-    width: 400,
-    height: 400,
-    borderRadius: 200,
     backgroundColor: "rgba(26,75,109,0.08)",
     top: -150,
     left: -100,
   },
   bgOrb2: {
     position: "absolute",
-    width: 350,
-    height: 350,
-    borderRadius: 175,
     backgroundColor: "rgba(26,75,109,0.06)",
     bottom: -100,
     right: -80,
   },
   bgOrb3: {
     position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
     backgroundColor: "rgba(26,75,109,0.04)",
-    top: height * 0.4,
-    left: width * 0.3,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    paddingVertical: 40,
   },
   card: {
     width: "100%",
-    maxWidth: 400,
     backgroundColor: "#ffffff",
-    borderRadius: 24,
-    padding: 28,
     borderWidth: 1,
     borderColor: "rgba(26,75,109,0.18)",
     shadowColor: "#000",
@@ -301,43 +494,27 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   formIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
     backgroundColor: "rgba(26,75,109,0.12)",
     borderWidth: 1,
     borderColor: "rgba(26,75,109,0.25)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
-  formIconText: { fontSize: 20 },
   formTitle: {
-    fontSize: 24,
     fontWeight: "700",
     color: "#1a2e3b",
-    marginBottom: 4,
     letterSpacing: -0.5,
   },
   formSub: {
-    fontSize: 13,
     color: "#5c7a8a",
-    marginBottom: 16,
   },
-  secureBadge: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  secureBadge: { alignItems: "center" },
   secureBadgeInner: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 100,
     borderWidth: 1,
     borderColor: "rgba(26,75,109,0.3)",
     backgroundColor: "rgba(26,75,109,0.07)",
   },
   secureBadgeText: {
-    fontSize: 10,
     fontWeight: "700",
     color: "#1a4b6d",
     letterSpacing: 1.5,
@@ -348,36 +525,26 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(239,68,68,0.07)",
     borderWidth: 1,
     borderColor: "rgba(239,68,68,0.2)",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
   },
   alertText: {
     flex: 1,
-    fontSize: 13,
     color: "#dc2626",
     fontWeight: "500",
   },
-  alertClose: { padding: 4 },
-  alertCloseText: { color: "#dc2626", fontSize: 14 },
-  fieldGroup: {
-    marginBottom: 16,
+  alertCloseText: { color: "#dc2626" },
+  twoColForm: {
+    flexDirection: "row",
   },
   label: {
-    fontSize: 10,
     fontWeight: "700",
     color: "#4a6577",
-    marginBottom: 7,
     letterSpacing: 1.2,
   },
   labelFocus: { color: "#1a4b6d" },
   inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "#f4f8fb",
     borderWidth: 1.5,
     borderColor: "#c8d8e8",
-    borderRadius: 10,
     overflow: "hidden",
   },
   inputWrapFocus: {
@@ -390,30 +557,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   input: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
     color: "#1a2e3b",
   },
   inputBar: {
-    height: 2,
     backgroundColor: "#1a4b6d",
     borderRadius: 1,
-    marginTop: 2,
   },
-  eyeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
-  eyeIcon: { fontSize: 16 },
   submitBtn: {
     backgroundColor: "#1a4b6d",
-    borderRadius: 12,
-    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 6,
     shadowColor: "#1a4b6d",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -423,25 +576,21 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitText: {
     color: "#fff",
-    fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.5,
   },
   forgotBtn: {
     alignItems: "center",
-    paddingVertical: 12,
     paddingHorizontal: 10,
     alignSelf: "center",
   },
   forgotText: {
-    fontSize: 13,
     color: "#5c7a8a",
     fontWeight: "500",
   },
   footerDivider: {
     height: 1,
     backgroundColor: "#e4eef4",
-    marginBottom: 14,
   },
   footer: {
     flexDirection: "row",
@@ -451,7 +600,6 @@ const styles = StyleSheet.create({
   securityBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
   },
   securityDot: {
     width: 6,
@@ -461,14 +609,8 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   securityText: {
-    fontSize: 10,
     color: "#8da8b8",
     letterSpacing: 0.5,
-  },
-  homeLink: {
-    fontSize: 12,
-    color: "#1a4b6d",
-    fontWeight: "600",
   },
 });
 

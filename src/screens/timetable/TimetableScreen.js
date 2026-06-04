@@ -6,19 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  RefreshControl,
-  Dimensions,
   Animated,
+  RefreshControl,
   Platform,
-  StatusBar,
+  useWindowDimensions, // ✅ Responsive + Landscape
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // ✅ Safe Area
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 
-const { width } = Dimensions.get("window");
-
-// ─── COLORS ────────────────────────────────────────────────────────────────
+// ─── COLORS ─────────────────────────────────────────────────────────────────
 const C = {
   primary: "#1a4b6d",
   primaryDark: "#0f3a4a",
@@ -45,7 +43,7 @@ const C = {
   slotPractical: { bg: "#f3e5f5", text: "#6a1b9a", border: "#ce93d8" },
 };
 
-// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 export const DAY_MAP = {
   0: "SUN",
   1: "MON",
@@ -66,7 +64,7 @@ const DAY_NAMES = [
 ];
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 const toLocalDateStr = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -120,10 +118,24 @@ const getExceptionLabel = (slot) => {
   return null;
 };
 
-// ─── MAIN SCREEN ────────────────────────────────────────────────────────────
+// ✅ Scale hook — base 390px
+const useScale = () => {
+  const { width } = useWindowDimensions();
+  return Math.min(Math.max(width / 390, 0.75), 1.25);
+};
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function StudentTimetableScreen() {
   const { user } = useAuth();
   const navigation = useNavigation();
+
+  // ✅ Safe Area
+  const insets = useSafeAreaInsets();
+  // ✅ Responsive + Landscape
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const scale = useScale();
+  const rs = (size) => Math.round(size * scale);
 
   const [weekly, setWeekly] = useState({});
   const [todaySlots, setTodaySlots] = useState([]);
@@ -324,8 +336,7 @@ export default function StudentTimetableScreen() {
     loadTimetable(true);
   };
 
-  const today = new Date();
-  const currentDayAbbr = DAY_MAP[today.getDay()];
+  const currentDayAbbr = DAY_MAP[new Date().getDay()];
   const todayDisplaySlots = weekly[selectedDay] || [];
 
   const getDateForDay = (dayCode) => {
@@ -340,27 +351,334 @@ export default function StudentTimetableScreen() {
     return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
   };
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={s.loadingContainer}>
-        <Text style={{ fontSize: 52 }}>📅</Text>
+      <View
+        style={[
+          s.loadingContainer,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <Text style={{ fontSize: rs(52) }}>📅</Text>
         <ActivityIndicator
           size="large"
           color={C.primary}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: rs(16) }}
         />
-        <Text style={s.loadingText}>Loading Your Timetable...</Text>
+        <Text style={[s.loadingText, { fontSize: rs(15) }]}>
+          Loading Your Timetable...
+        </Text>
       </View>
     );
   }
 
-  return (
-    <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+  // ── Landscape: show day tabs + slots side by side ─────────────────────────
+  const mainContent = (
+    <>
+      {/* ── DAY TABS ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: rs(12) }}
+        contentContainerStyle={{ gap: rs(8), paddingRight: rs(8) }}
+      >
+        {DAYS.map((day, idx) => {
+          const dayDate = getDateForDay(day);
+          const isToday = day === currentDayAbbr;
+          const isSelected = day === selectedDay;
+          const hasSlots = (weekly[day] || []).length > 0;
+          return (
+            <TouchableOpacity
+              key={day}
+              style={[
+                s.dayTab,
+                isSelected && s.dayTabSelected,
+                isToday && !isSelected && s.dayTabToday,
+                {
+                  borderRadius: rs(14),
+                  paddingHorizontal: rs(14),
+                  paddingVertical: rs(10),
+                  minWidth: rs(62),
+                },
+              ]}
+              onPress={() => setSelectedDay(day)}
+            >
+              <Text
+                style={[
+                  s.dayTabName,
+                  isSelected && s.dayTabTextSelected,
+                  { fontSize: rs(12) },
+                ]}
+              >
+                {DAY_SHORT[idx]}
+              </Text>
+              <Text
+                style={[
+                  s.dayTabDate,
+                  isSelected && s.dayTabTextSelected,
+                  { fontSize: rs(10) },
+                ]}
+              >
+                {formatShortDate(dayDate)}
+              </Text>
+              {hasSlots && (
+                <View
+                  style={[s.dayTabDot, isSelected && s.dayTabDotSelected]}
+                />
+              )}
+              {isToday && (
+                <Text style={[s.todayBadge, { fontSize: rs(8) }]}>Today</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
+      {/* ── TODAY'S CLASSES ── */}
+      <View style={[s.sectionCard, { borderRadius: rs(18), padding: rs(14) }]}>
+        <View
+          style={[
+            s.sectionHeader,
+            { marginBottom: rs(12), paddingBottom: rs(10) },
+          ]}
+        >
+          <View style={[s.sectionTitleWrap, { gap: rs(6) }]}>
+            <Text style={{ fontSize: rs(16) }}>
+              {selectedDay === currentDayAbbr ? "☀️" : "📅"}
+            </Text>
+            <Text style={[s.sectionTitle, { fontSize: rs(14) }]}>
+              {selectedDay === currentDayAbbr
+                ? "Today's Classes"
+                : `${DAY_NAMES[DAYS.indexOf(selectedDay)]} Classes`}
+            </Text>
+          </View>
+          <View
+            style={[
+              s.sectionBadge,
+              {
+                borderRadius: rs(20),
+                paddingHorizontal: rs(10),
+                paddingVertical: rs(4),
+              },
+            ]}
+          >
+            <Text style={[s.sectionBadgeText, { fontSize: rs(11) }]}>
+              {todayDisplaySlots.length} classes
+            </Text>
+          </View>
+        </View>
+        {todayDisplaySlots.length === 0 ? (
+          <EmptyDay
+            day={DAYS.indexOf(selectedDay)}
+            isToday={selectedDay === currentDayAbbr}
+            rs={rs}
+          />
+        ) : (
+          (() => {
+            const isFullDayHoliday =
+              todayDisplaySlots.length === 1 &&
+              todayDisplaySlots[0].status === "HOLIDAY" &&
+              todayDisplaySlots[0].startTime === "00:00" &&
+              todayDisplaySlots[0].endTime === "23:59";
+            if (isFullDayHoliday)
+              return <HolidayCard slot={todayDisplaySlots[0]} rs={rs} />;
+            return todayDisplaySlots.map((slot, idx) => (
+              <SlotCard key={slot._id || idx} slot={slot} index={idx} rs={rs} />
+            ));
+          })()
+        )}
+      </View>
+
+      {/* ── WEEKLY OVERVIEW ── */}
+      <View
+        style={[
+          s.sectionCard,
+          { marginBottom: rs(32), borderRadius: rs(18), padding: rs(14) },
+        ]}
+      >
+        <View
+          style={[
+            s.sectionHeader,
+            { marginBottom: rs(12), paddingBottom: rs(10) },
+          ]}
+        >
+          <View style={[s.sectionTitleWrap, { gap: rs(6) }]}>
+            <Text style={{ fontSize: rs(16) }}>📋</Text>
+            <Text style={[s.sectionTitle, { fontSize: rs(14) }]}>
+              Weekly Overview
+            </Text>
+          </View>
+          <View
+            style={[
+              s.sectionBadge,
+              {
+                borderRadius: rs(20),
+                paddingHorizontal: rs(10),
+                paddingVertical: rs(4),
+              },
+            ]}
+          >
+            <Text style={[s.sectionBadgeText, { fontSize: rs(11) }]}>
+              All days
+            </Text>
+          </View>
+        </View>
+        {DAYS.map((day, idx) => {
+          const slots = weekly[day] || [];
+          const dayDate = getDateForDay(day);
+          const isToday = day === currentDayAbbr;
+          const isFullHoliday =
+            slots.length === 1 &&
+            slots[0].status === "HOLIDAY" &&
+            slots[0].startTime === "00:00";
+          return (
+            <TouchableOpacity
+              key={day}
+              style={[
+                s.weekRow,
+                isToday && s.weekRowToday,
+                { gap: rs(10), paddingVertical: rs(10) },
+              ]}
+              onPress={() => setSelectedDay(day)}
+              activeOpacity={0.75}
+            >
+              <View
+                style={[
+                  s.weekRowDay,
+                  isToday && s.weekRowDayToday,
+                  {
+                    width: rs(46),
+                    borderRadius: rs(10),
+                    paddingVertical: rs(8),
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    s.weekRowDayName,
+                    isToday && s.weekRowDayTextToday,
+                    { fontSize: rs(12) },
+                  ]}
+                >
+                  {DAY_SHORT[idx]}
+                </Text>
+                <Text
+                  style={[
+                    s.weekRowDayDate,
+                    isToday && s.weekRowDayTextToday,
+                    { fontSize: rs(9) },
+                  ]}
+                >
+                  {formatShortDate(dayDate)}
+                </Text>
+              </View>
+              <View style={[s.weekRowSlots, { gap: rs(4) }]}>
+                {isFullHoliday ? (
+                  <View
+                    style={[
+                      s.miniChip,
+                      {
+                        borderRadius: rs(8),
+                        paddingHorizontal: rs(8),
+                        paddingVertical: rs(5),
+                        backgroundColor: C.warningLight,
+                        borderColor: C.warning,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        s.miniChipText,
+                        { fontSize: rs(11), color: "#b45309" },
+                      ]}
+                    >
+                      🎉 Holiday
+                    </Text>
+                  </View>
+                ) : slots.length === 0 ? (
+                  <Text style={[s.weekRowEmpty, { fontSize: rs(12) }]}>
+                    — No classes
+                  </Text>
+                ) : (
+                  slots.slice(0, 3).map((slot, si) => {
+                    const colors = getSlotColors(slot);
+                    const exc = getExceptionLabel(slot);
+                    return (
+                      <View
+                        key={si}
+                        style={[
+                          s.miniChip,
+                          {
+                            borderRadius: rs(8),
+                            paddingHorizontal: rs(8),
+                            paddingVertical: rs(5),
+                            backgroundColor: colors.bg,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            s.miniChipText,
+                            { fontSize: rs(11), color: colors.text },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {formatTime12(slot.startTime)} ·{" "}
+                          {slot.subject_id?.name}
+                        </Text>
+                        {exc && (
+                          <Text
+                            style={[
+                              s.miniExcBadge,
+                              { fontSize: rs(9), color: exc.color },
+                            ]}
+                          >
+                            {exc.label}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+                {slots.length > 3 && (
+                  <Text style={[s.weekRowMore, { fontSize: rs(10) }]}>
+                    +{slots.length - 3} more
+                  </Text>
+                )}
+              </View>
+              <Text style={[s.weekRowArrow, { fontSize: rs(18) }]}>›</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  return (
+    // ✅ Root View with safe area insets — no more hardcoded marginTop
+    <View
+      style={[
+        s.root,
+        {
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[
+          s.scrollContent,
+          {
+            paddingHorizontal: rs(14),
+            paddingTop: rs(14), // ✅ Profile sarkha gap — card top la chipkat nahi
+            paddingBottom: rs(32),
+            gap: rs(12),
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -370,26 +688,47 @@ export default function StudentTimetableScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── PROFILE-STYLE WELCOME CARD ── */}
-        <View style={s.welcomeCard}>
-          {/* Decorative circles */}
+        {/* ── WELCOME CARD ── */}
+        <View
+          style={[
+            s.welcomeCard,
+            {
+              borderRadius: rs(16),
+              paddingHorizontal: rs(16),
+              paddingTop: rs(14), // ✅ insets.top root View la aahe, card la fakt internal padding
+              paddingBottom: rs(14),
+              marginBottom: rs(2),
+            },
+          ]}
+        >
           <View style={s.circleTop} />
           <View style={s.circleBottom} />
 
-          {/* Row 1: back + title + time */}
-          <View style={s.welcomeRow}>
+          <View style={[s.welcomeRow, { marginBottom: rs(12) }]}>
             <TouchableOpacity
-              style={s.backBtn}
+              style={[
+                s.backBtn,
+                { width: rs(34), height: rs(34), borderRadius: rs(10) },
+              ]}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
             >
-              <Text style={s.backBtnText}>←</Text>
+              <Text style={[s.backBtnText, { fontSize: rs(20) }]}>←</Text>
             </TouchableOpacity>
-
-            <Text style={s.welcomeTitle}>My Timetable</Text>
-
-            <View style={s.timeChipCard}>
-              <Text style={s.timeChipText}>
+            <Text style={[s.welcomeTitle, { fontSize: rs(16) }]}>
+              My Timetable
+            </Text>
+            <View
+              style={[
+                s.timeChipCard,
+                {
+                  borderRadius: rs(10),
+                  paddingHorizontal: rs(10),
+                  paddingVertical: rs(6),
+                },
+              ]}
+            >
+              <Text style={[s.timeChipText, { fontSize: rs(13) }]}>
                 {currentTime.toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -399,16 +738,19 @@ export default function StudentTimetableScreen() {
             </View>
           </View>
 
-          {/* Row 2: week navigation */}
-          <View style={s.weekNav}>
+          {/* Week nav */}
+          <View style={[s.weekNav, { borderRadius: rs(12) }]}>
             <TouchableOpacity
-              style={s.weekArrowBtn}
+              style={[
+                s.weekArrowBtn,
+                { paddingHorizontal: rs(14), paddingVertical: rs(10) },
+              ]}
               onPress={() => shiftWeek(-1)}
             >
-              <Text style={s.weekArrowText}>‹</Text>
+              <Text style={[s.weekArrowText, { fontSize: rs(22) }]}>‹</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.weekCenter} onPress={goCurrentWeek}>
-              <Text style={s.weekRangeText}>
+              <Text style={[s.weekRangeText, { fontSize: rs(12) }]}>
                 {new Date(dateRange.startDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -420,263 +762,247 @@ export default function StudentTimetableScreen() {
                   year: "numeric",
                 })}
               </Text>
-              <Text style={s.weekHint}>Tap for current week</Text>
+              <Text style={[s.weekHint, { fontSize: rs(10) }]}>
+                Tap for current week
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={s.weekArrowBtn}
+              style={[
+                s.weekArrowBtn,
+                { paddingHorizontal: rs(14), paddingVertical: rs(10) },
+              ]}
               onPress={() => shiftWeek(1)}
             >
-              <Text style={s.weekArrowText}>›</Text>
+              <Text style={[s.weekArrowText, { fontSize: rs(22) }]}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Outside Range Banner */}
         {isOutsideRange && (
-          <View style={s.rangeBanner}>
-            <Text style={{ fontSize: 20 }}>⚠️</Text>
+          <View
+            style={[
+              s.rangeBanner,
+              { borderRadius: rs(12), padding: rs(12), gap: rs(8) },
+            ]}
+          >
+            <Text style={{ fontSize: rs(20) }}>⚠️</Text>
             <View style={{ flex: 1 }}>
-              <Text style={s.rangeBannerTitle}>No Timetable for This Week</Text>
+              <Text style={[s.rangeBannerTitle, { fontSize: rs(13) }]}>
+                No Timetable for This Week
+              </Text>
               {activePeriod.startDate && activePeriod.endDate && (
-                <Text style={s.rangeBannerSub}>
+                <Text style={[s.rangeBannerSub, { fontSize: rs(11) }]}>
                   Active:{" "}
                   {parseLocalDate(activePeriod.startDate).toLocaleDateString(
                     "en-US",
-                    {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    },
+                    { day: "numeric", month: "short", year: "numeric" },
                   )}
                   {" – "}
                   {parseLocalDate(activePeriod.endDate).toLocaleDateString(
                     "en-US",
-                    {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    },
+                    { day: "numeric", month: "short", year: "numeric" },
                   )}
                 </Text>
               )}
             </View>
-            <TouchableOpacity style={s.rangeBannerBtn} onPress={goCurrentWeek}>
-              <Text style={s.rangeBannerBtnText}>Current Week</Text>
+            <TouchableOpacity
+              style={[
+                s.rangeBannerBtn,
+                {
+                  borderRadius: rs(8),
+                  paddingHorizontal: rs(10),
+                  paddingVertical: rs(6),
+                },
+              ]}
+              onPress={goCurrentWeek}
+            >
+              <Text style={[s.rangeBannerBtnText, { fontSize: rs(11) }]}>
+                Current Week
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
         {error && (
-          <View style={s.errorBanner}>
-            <Text style={s.errorText}>⚠ {error}</Text>
+          <View
+            style={[s.errorBanner, { borderRadius: rs(10), padding: rs(12) }]}
+          >
+            <Text style={[s.errorText, { fontSize: rs(13) }]}>⚠ {error}</Text>
             <TouchableOpacity onPress={() => loadTimetable(false)}>
-              <Text style={s.errorRetry}>Retry</Text>
+              <Text style={[s.errorRetry, { fontSize: rs(13) }]}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {navLoading && (
-          <View style={s.navLoading}>
+          <View style={[s.navLoading, { gap: rs(8), paddingVertical: rs(10) }]}>
             <ActivityIndicator size="small" color={C.primary} />
-            <Text style={s.navLoadingText}>Loading timetable...</Text>
+            <Text style={[s.navLoadingText, { fontSize: rs(13) }]}>
+              Loading timetable...
+            </Text>
           </View>
         )}
 
-        {/* ── DAY SELECTOR TABS ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 12 }}
-          contentContainerStyle={{ gap: 8, paddingRight: 8 }}
-        >
-          {DAYS.map((day, idx) => {
-            const dayDate = getDateForDay(day);
-            const isToday = day === currentDayAbbr;
-            const isSelected = day === selectedDay;
-            const hasSlots = (weekly[day] || []).length > 0;
-            return (
-              <TouchableOpacity
-                key={day}
-                style={[
-                  s.dayTab,
-                  isSelected && s.dayTabSelected,
-                  isToday && !isSelected && s.dayTabToday,
-                ]}
-                onPress={() => setSelectedDay(day)}
-              >
-                <Text
-                  style={[s.dayTabName, isSelected && s.dayTabTextSelected]}
-                >
-                  {DAY_SHORT[idx]}
-                </Text>
-                <Text
-                  style={[s.dayTabDate, isSelected && s.dayTabTextSelected]}
-                >
-                  {formatShortDate(dayDate)}
-                </Text>
-                {hasSlots && (
-                  <View
-                    style={[s.dayTabDot, isSelected && s.dayTabDotSelected]}
-                  />
-                )}
-                {isToday && <Text style={s.todayBadge}>Today</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* ── TODAY'S CLASSES SECTION ── */}
-        <View style={s.sectionCard}>
-          <View style={s.sectionHeader}>
-            <View style={s.sectionTitleWrap}>
-              <Text style={{ fontSize: 16 }}>
-                {selectedDay === currentDayAbbr ? "☀️" : "📅"}
-              </Text>
-              <Text style={s.sectionTitle}>
-                {selectedDay === currentDayAbbr
-                  ? "Today's Classes"
-                  : `${DAY_NAMES[DAYS.indexOf(selectedDay)]} Classes`}
-              </Text>
-            </View>
-            <View style={s.sectionBadge}>
-              <Text style={s.sectionBadgeText}>
-                {todayDisplaySlots.length} classes
-              </Text>
-            </View>
-          </View>
-
-          {todayDisplaySlots.length === 0 ? (
-            <EmptyDay
-              day={DAYS.indexOf(selectedDay)}
-              isToday={selectedDay === currentDayAbbr}
-            />
-          ) : (
-            (() => {
-              const isFullDayHoliday =
-                todayDisplaySlots.length === 1 &&
-                todayDisplaySlots[0].status === "HOLIDAY" &&
-                todayDisplaySlots[0].startTime === "00:00" &&
-                todayDisplaySlots[0].endTime === "23:59";
-              if (isFullDayHoliday)
-                return <HolidayCard slot={todayDisplaySlots[0]} />;
-              return todayDisplaySlots.map((slot, idx) => (
-                <SlotCard key={slot._id || idx} slot={slot} index={idx} />
-              ));
-            })()
-          )}
-        </View>
-
-        {/* ── WEEKLY OVERVIEW ── */}
-        <View style={[s.sectionCard, { marginBottom: 32 }]}>
-          <View style={s.sectionHeader}>
-            <View style={s.sectionTitleWrap}>
-              <Text style={{ fontSize: 16 }}>📋</Text>
-              <Text style={s.sectionTitle}>Weekly Overview</Text>
-            </View>
-            <View style={s.sectionBadge}>
-              <Text style={s.sectionBadgeText}>All days</Text>
-            </View>
-          </View>
-          {DAYS.map((day, idx) => {
-            const slots = weekly[day] || [];
-            const dayDate = getDateForDay(day);
-            const isToday = day === currentDayAbbr;
-            const isFullHoliday =
-              slots.length === 1 &&
-              slots[0].status === "HOLIDAY" &&
-              slots[0].startTime === "00:00";
-            return (
-              <TouchableOpacity
-                key={day}
-                style={[s.weekRow, isToday && s.weekRowToday]}
-                onPress={() => setSelectedDay(day)}
-                activeOpacity={0.75}
-              >
-                <View style={[s.weekRowDay, isToday && s.weekRowDayToday]}>
-                  <Text
-                    style={[s.weekRowDayName, isToday && s.weekRowDayTextToday]}
-                  >
-                    {DAY_SHORT[idx]}
-                  </Text>
-                  <Text
-                    style={[s.weekRowDayDate, isToday && s.weekRowDayTextToday]}
-                  >
-                    {formatShortDate(dayDate)}
-                  </Text>
-                </View>
-                <View style={s.weekRowSlots}>
-                  {isFullHoliday ? (
-                    <View
+        {/* ✅ Landscape: day tabs + weekly side by side */}
+        {isLandscape ? (
+          <View style={{ flexDirection: "row", gap: rs(12) }}>
+            {/* Left col: day selector */}
+            <ScrollView
+              style={{ width: rs(80) }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={{ gap: rs(6) }}>
+                {DAYS.map((day, idx) => {
+                  const dayDate = getDateForDay(day);
+                  const isToday = day === currentDayAbbr;
+                  const isSelected = day === selectedDay;
+                  const hasSlots = (weekly[day] || []).length > 0;
+                  return (
+                    <TouchableOpacity
+                      key={day}
                       style={[
-                        s.miniChip,
+                        s.dayTab,
+                        isSelected && s.dayTabSelected,
+                        isToday && !isSelected && s.dayTabToday,
                         {
-                          backgroundColor: C.warningLight,
-                          borderColor: C.warning,
+                          borderRadius: rs(10),
+                          paddingVertical: rs(10),
+                          minWidth: 0,
                         },
                       ]}
+                      onPress={() => setSelectedDay(day)}
                     >
-                      <Text style={[s.miniChipText, { color: "#b45309" }]}>
-                        🎉 Holiday
+                      <Text
+                        style={[
+                          s.dayTabName,
+                          isSelected && s.dayTabTextSelected,
+                          { fontSize: rs(11) },
+                        ]}
+                      >
+                        {DAY_SHORT[idx]}
                       </Text>
-                    </View>
-                  ) : slots.length === 0 ? (
-                    <Text style={s.weekRowEmpty}>— No classes</Text>
-                  ) : (
-                    slots.slice(0, 3).map((slot, si) => {
-                      const colors = getSlotColors(slot);
-                      const exc = getExceptionLabel(slot);
-                      return (
+                      <Text
+                        style={[
+                          s.dayTabDate,
+                          isSelected && s.dayTabTextSelected,
+                          { fontSize: rs(9) },
+                        ]}
+                      >
+                        {formatShortDate(dayDate)}
+                      </Text>
+                      {hasSlots && (
                         <View
-                          key={si}
                           style={[
-                            s.miniChip,
-                            {
-                              backgroundColor: colors.bg,
-                              borderColor: colors.border,
-                            },
+                            s.dayTabDot,
+                            isSelected && s.dayTabDotSelected,
                           ]}
-                        >
-                          <Text
-                            style={[s.miniChipText, { color: colors.text }]}
-                            numberOfLines={1}
-                          >
-                            {formatTime12(slot.startTime)} ·{" "}
-                            {slot.subject_id?.name}
-                          </Text>
-                          {exc && (
-                            <Text
-                              style={[s.miniExcBadge, { color: exc.color }]}
-                            >
-                              {exc.label}
-                            </Text>
-                          )}
-                        </View>
-                      );
-                    })
-                  )}
-                  {slots.length > 3 && (
-                    <Text style={s.weekRowMore}>+{slots.length - 3} more</Text>
-                  )}
+                        />
+                      )}
+                      {isToday && (
+                        <Text style={[s.todayBadge, { fontSize: rs(7) }]}>
+                          Today
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            {/* Right col: classes */}
+            <View style={{ flex: 1 }}>
+              <View
+                style={[
+                  s.sectionCard,
+                  { borderRadius: rs(18), padding: rs(14) },
+                ]}
+              >
+                <View
+                  style={[
+                    s.sectionHeader,
+                    { marginBottom: rs(12), paddingBottom: rs(10) },
+                  ]}
+                >
+                  <View style={[s.sectionTitleWrap, { gap: rs(6) }]}>
+                    <Text style={{ fontSize: rs(15) }}>
+                      {selectedDay === currentDayAbbr ? "☀️" : "📅"}
+                    </Text>
+                    <Text style={[s.sectionTitle, { fontSize: rs(13) }]}>
+                      {selectedDay === currentDayAbbr
+                        ? "Today's Classes"
+                        : `${DAY_NAMES[DAYS.indexOf(selectedDay)]} Classes`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      s.sectionBadge,
+                      {
+                        borderRadius: rs(20),
+                        paddingHorizontal: rs(10),
+                        paddingVertical: rs(4),
+                      },
+                    ]}
+                  >
+                    <Text style={[s.sectionBadgeText, { fontSize: rs(10) }]}>
+                      {todayDisplaySlots.length} classes
+                    </Text>
+                  </View>
                 </View>
-                <Text style={s.weekRowArrow}></Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                {todayDisplaySlots.length === 0 ? (
+                  <EmptyDay
+                    day={DAYS.indexOf(selectedDay)}
+                    isToday={selectedDay === currentDayAbbr}
+                    rs={rs}
+                  />
+                ) : (
+                  todayDisplaySlots.map((slot, idx) => (
+                    <SlotCard
+                      key={slot._id || idx}
+                      slot={slot}
+                      index={idx}
+                      rs={rs}
+                    />
+                  ))
+                )}
+              </View>
+            </View>
+          </View>
+        ) : (
+          mainContent
+        )}
+
+        {/* Portrait: show full mainContent */}
+        {!isLandscape && null /* already rendered above as mainContent */}
       </ScrollView>
     </View>
   );
 }
 
-// ─── EMPTY DAY ────────────────────────────────────────────────────────────────
-function EmptyDay({ day, isToday }) {
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
+
+function EmptyDay({ day, isToday, rs }) {
   return (
-    <View style={ed.wrap}>
-      <Text style={ed.icon}>{isToday ? "☀️" : "📅"}</Text>
-      <Text style={ed.title}>
+    <View style={{ alignItems: "center", paddingVertical: rs(32) }}>
+      <Text style={{ fontSize: rs(44), marginBottom: rs(10) }}>
+        {isToday ? "☀️" : "📅"}
+      </Text>
+      <Text
+        style={{
+          fontSize: rs(16),
+          fontWeight: "700",
+          color: C.textPrimary,
+          marginBottom: rs(4),
+        }}
+      >
         {isToday ? "No Classes Today" : "No Classes"}
       </Text>
-      <Text style={ed.sub}>
+      <Text
+        style={{
+          fontSize: rs(13),
+          color: C.textSecondary,
+          textAlign: "center",
+        }}
+      >
         {isToday
           ? "Enjoy your free day!"
           : `${DAY_NAMES[day]} is free this week.`}
@@ -684,139 +1010,209 @@ function EmptyDay({ day, isToday }) {
     </View>
   );
 }
-const ed = StyleSheet.create({
-  wrap: { alignItems: "center", paddingVertical: 32 },
-  icon: { fontSize: 44, marginBottom: 10 },
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: C.textPrimary,
-    marginBottom: 4,
-  },
-  sub: { fontSize: 13, color: C.textSecondary, textAlign: "center" },
-});
 
-// ─── HOLIDAY CARD ─────────────────────────────────────────────────────────────
-function HolidayCard({ slot }) {
+function HolidayCard({ slot, rs }) {
   const reason = slot.exception?.reason || slot.subject_id?.name || "Holiday";
   return (
-    <View style={hc.card}>
-      <View style={hc.banner}>
-        <View style={hc.iconWrap}>
-          <Text style={{ fontSize: 26 }}>🎉</Text>
+    <View
+      style={{
+        backgroundColor: C.warningLight,
+        borderRadius: rs(14),
+        borderWidth: 1.5,
+        borderColor: C.warning,
+        padding: rs(16),
+        margin: rs(4),
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: rs(12),
+          marginBottom: rs(12),
+        }}
+      >
+        <View
+          style={{
+            width: rs(52),
+            height: rs(52),
+            borderRadius: rs(26),
+            backgroundColor: C.warning,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: rs(26) }}>🎉</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={hc.title}>Full Day Holiday</Text>
-          <Text style={hc.reason}>{reason}</Text>
+          <Text
+            style={{
+              fontSize: rs(17),
+              fontWeight: "700",
+              color: "#92400e",
+              marginBottom: rs(2),
+            }}
+          >
+            Full Day Holiday
+          </Text>
+          <Text
+            style={{ fontSize: rs(13), color: "#b45309", fontWeight: "500" }}
+          >
+            {reason}
+          </Text>
         </View>
       </View>
-      <View style={hc.msgBox}>
-        <Text style={hc.msgText}>🌟 Enjoy your holiday! No classes today.</Text>
+      <View
+        style={{
+          backgroundColor: "rgba(255,255,255,0.5)",
+          borderRadius: rs(8),
+          padding: rs(12),
+          borderLeftWidth: 4,
+          borderLeftColor: C.warning,
+        }}
+      >
+        <Text
+          style={{ fontSize: rs(13), color: "#78350f", lineHeight: rs(20) }}
+        >
+          🌟 Enjoy your holiday! No classes today.
+        </Text>
       </View>
     </View>
   );
 }
-const hc = StyleSheet.create({
-  card: {
-    backgroundColor: C.warningLight,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: C.warning,
-    padding: 16,
-    margin: 4,
-  },
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  iconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: C.warning,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: { fontSize: 17, fontWeight: "700", color: "#92400e", marginBottom: 2 },
-  reason: { fontSize: 13, color: "#b45309", fontWeight: "500" },
-  msgBox: {
-    backgroundColor: "rgba(255,255,255,0.5)",
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: C.warning,
-  },
-  msgText: { fontSize: 13, color: "#78350f", lineHeight: 20 },
-});
 
-// ─── SLOT CARD ────────────────────────────────────────────────────────────────
-function SlotCard({ slot, index }) {
+function SlotCard({ slot, index, rs }) {
   const colors = getSlotColors(slot);
   const exc = getExceptionLabel(slot);
   const isCancelled =
     slot.status === "CANCELLED" || slot.exception?.type === "CANCELLED";
-
   return (
     <View
-      style={[
-        sc.card,
-        { borderLeftColor: colors.text, opacity: isCancelled ? 0.75 : 1 },
-      ]}
+      style={{
+        borderLeftWidth: 4,
+        borderLeftColor: colors.text,
+        backgroundColor: "#f8fafc",
+        borderRadius: rs(14),
+        padding: rs(14),
+        marginBottom: rs(10),
+        opacity: isCancelled ? 0.75 : 1,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
+      }}
     >
-      <View style={sc.topRow}>
-        <View style={sc.timeChip}>
-          <Text style={sc.timeText}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: rs(8),
+          flexWrap: "wrap",
+          gap: rs(6),
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#e3f2fd",
+            borderRadius: rs(8),
+            paddingHorizontal: rs(10),
+            paddingVertical: rs(5),
+          }}
+        >
+          <Text
+            style={{ fontSize: rs(12), fontWeight: "600", color: C.primary }}
+          >
             🕐 {formatTime12(slot.startTime)} – {formatTime12(slot.endTime)}
           </Text>
         </View>
-        <View style={sc.badges}>
-          <View style={[sc.typeBadge, { backgroundColor: colors.bg }]}>
-            <Text style={[sc.typeBadgeText, { color: colors.text }]}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: rs(4) }}>
+          <View
+            style={{
+              borderRadius: rs(6),
+              paddingHorizontal: rs(8),
+              paddingVertical: rs(3),
+              backgroundColor: colors.bg,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: rs(10),
+                fontWeight: "700",
+                textTransform: "uppercase",
+                color: colors.text,
+              }}
+            >
               {slot.slotType || "LECTURE"}
             </Text>
           </View>
           {exc && (
             <View
-              style={[
-                sc.excBadge,
-                {
-                  backgroundColor: exc.color + "18",
-                  borderColor: exc.color + "44",
-                },
-              ]}
+              style={{
+                borderRadius: rs(6),
+                paddingHorizontal: rs(7),
+                paddingVertical: rs(3),
+                borderWidth: 1,
+                backgroundColor: exc.color + "18",
+                borderColor: exc.color + "44",
+              }}
             >
-              <Text style={[sc.excBadgeText, { color: exc.color }]}>
+              <Text
+                style={{
+                  fontSize: rs(10),
+                  fontWeight: "700",
+                  color: exc.color,
+                }}
+              >
                 {exc.label}
               </Text>
             </View>
           )}
         </View>
       </View>
-
-      <Text style={[sc.subject, isCancelled && sc.strikethrough]}>
+      <Text
+        style={{
+          fontSize: rs(15),
+          fontWeight: "700",
+          color: C.textPrimary,
+          marginBottom: rs(8),
+          textDecorationLine: isCancelled ? "line-through" : "none",
+          opacity: isCancelled ? 0.6 : 1,
+        }}
+      >
         {slot.subject_id?.name}
       </Text>
-
-      <View style={sc.metaRow}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: rs(12) }}>
         {slot.teacher_id?.name && (
-          <Text style={sc.metaItem}>👨‍🏫 {slot.teacher_id.name}</Text>
+          <Text style={{ fontSize: rs(12), color: C.textSecondary }}>
+            👨‍🏫 {slot.teacher_id.name}
+          </Text>
         )}
-        {slot.room && <Text style={sc.metaItem}>📍 Room {slot.room}</Text>}
+        {slot.room && (
+          <Text style={{ fontSize: rs(12), color: C.textSecondary }}>
+            📍 Room {slot.room}
+          </Text>
+        )}
       </View>
-
       {slot.exception?.reason && (
         <View
-          style={[
-            sc.reasonBox,
-            {
-              borderLeftColor: exc?.color || C.info,
-              backgroundColor: (exc?.color || C.info) + "12",
-            },
-          ]}
+          style={{
+            borderLeftWidth: 3,
+            borderLeftColor: exc?.color || C.info,
+            borderRadius: rs(6),
+            padding: rs(8),
+            marginTop: rs(8),
+            backgroundColor: (exc?.color || C.info) + "12",
+          }}
         >
-          <Text style={[sc.reasonText, { color: exc?.color || C.info }]}>
+          <Text
+            style={{
+              fontSize: rs(12),
+              lineHeight: rs(18),
+              color: exc?.color || C.info,
+            }}
+          >
             ℹ️ {slot.exception.reason}
             {slot.exception.rescheduledTo &&
               ` → ${new Date(slot.exception.rescheduledTo).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
@@ -826,62 +1222,8 @@ function SlotCard({ slot, index }) {
     </View>
   );
 }
-const sc = StyleSheet.create({
-  card: {
-    borderLeftWidth: 4,
-    backgroundColor: "#f8fafc",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 8,
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  timeChip: {
-    backgroundColor: "#e3f2fd",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  timeText: { fontSize: 12, fontWeight: "600", color: C.primary },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  typeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  excBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-  },
-  excBadgeText: { fontSize: 10, fontWeight: "700" },
-  subject: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: C.textPrimary,
-    marginBottom: 8,
-  },
-  strikethrough: { textDecorationLine: "line-through", opacity: 0.6 },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  metaItem: { fontSize: 12, color: C.textSecondary },
-  reasonBox: { borderLeftWidth: 3, borderRadius: 6, padding: 8, marginTop: 8 },
-  reasonText: { fontSize: 12, lineHeight: 18 },
-});
 
-// ─── MAIN STYLES ─────────────────────────────────────────────────────────────
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   loadingContainer: {
@@ -890,28 +1232,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     backgroundColor: C.bg,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: C.textSecondary,
-    fontWeight: "500",
-  },
-
-  // ── SCROLL ──
+  loadingText: { marginTop: 12, color: C.textSecondary, fontWeight: "500" },
   scroll: { flex: 1 },
-  scrollContent: { padding: 14, paddingTop: 0, gap: 12, paddingBottom: 32 },
+  scrollContent: { flexGrow: 1 },
 
-  // ── PROFILE-STYLE WELCOME CARD ──
   welcomeCard: {
     backgroundColor: C.primary,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 14,
     overflow: "hidden",
     position: "relative",
-    marginBottom: 2,
-    marginTop: Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 2,
   },
   circleTop: {
     position: "absolute",
@@ -935,112 +1263,65 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
   },
   welcomeTitle: {
-    fontSize: 16,
     fontWeight: "700",
     color: C.white,
     flex: 1,
     textAlign: "center",
   },
   backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  backBtnText: {
-    color: C.white,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  timeChipCard: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  timeChipText: { color: C.white, fontSize: 13, fontWeight: "600" },
-
-  // ── WEEK NAV (inside welcome card) ──
+  backBtnText: { color: C.white, fontWeight: "700", lineHeight: 24 },
+  timeChipCard: { backgroundColor: "rgba(255,255,255,0.15)" },
+  timeChipText: { color: C.white, fontWeight: "600" },
   weekNav: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
     overflow: "hidden",
   },
-  weekArrowBtn: { paddingHorizontal: 14, paddingVertical: 10 },
-  weekArrowText: { color: C.white, fontSize: 22, fontWeight: "700" },
+  weekArrowBtn: {},
+  weekArrowText: { color: C.white, fontWeight: "700" },
   weekCenter: { flex: 1, alignItems: "center", paddingVertical: 8 },
-  weekRangeText: {
-    color: C.white,
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  weekHint: { color: "rgba(255,255,255,0.6)", fontSize: 10, marginTop: 2 },
+  weekRangeText: { color: C.white, fontWeight: "600", textAlign: "center" },
+  weekHint: { color: "rgba(255,255,255,0.6)", marginTop: 2 },
 
-  // ── BANNERS ──
   rangeBanner: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: C.warningLight,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: C.warning,
-    padding: 12,
-    gap: 8,
   },
-  rangeBannerTitle: { fontSize: 13, fontWeight: "700", color: "#92400e" },
-  rangeBannerSub: { fontSize: 11, color: "#b45309", marginTop: 2 },
-  rangeBannerBtn: {
-    backgroundColor: C.warning,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  rangeBannerBtnText: { color: C.white, fontSize: 11, fontWeight: "700" },
+  rangeBannerTitle: { fontWeight: "700", color: "#92400e" },
+  rangeBannerSub: { color: "#b45309", marginTop: 2 },
+  rangeBannerBtn: { backgroundColor: C.warning },
+  rangeBannerBtnText: { color: C.white, fontWeight: "700" },
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: C.dangerLight,
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#fecaca",
-    padding: 12,
   },
-  errorText: { flex: 1, color: C.danger, fontSize: 13 },
-  errorRetry: {
-    color: C.danger,
-    fontWeight: "700",
-    fontSize: 13,
-    marginLeft: 8,
-  },
-
+  errorText: { flex: 1, color: C.danger },
+  errorRetry: { color: C.danger, fontWeight: "700", marginLeft: 8 },
   navLoading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 10,
   },
-  navLoadingText: { color: C.textSecondary, fontSize: 13 },
+  navLoadingText: { color: C.textSecondary },
 
-  // ── DAY TABS ──
   dayTab: {
     alignItems: "center",
     backgroundColor: C.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderWidth: 1.5,
     borderColor: C.border,
-    minWidth: 62,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1049,8 +1330,8 @@ const s = StyleSheet.create({
   },
   dayTabSelected: { backgroundColor: C.primary, borderColor: C.primary },
   dayTabToday: { borderColor: C.accent, borderWidth: 2 },
-  dayTabName: { fontSize: 12, fontWeight: "700", color: C.textSecondary },
-  dayTabDate: { fontSize: 10, color: C.textMuted, marginTop: 1 },
+  dayTabName: { fontWeight: "700", color: C.textSecondary },
+  dayTabDate: { color: C.textMuted, marginTop: 1 },
   dayTabTextSelected: { color: C.white },
   dayTabDot: {
     width: 5,
@@ -1060,13 +1341,10 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
   dayTabDotSelected: { backgroundColor: C.white },
-  todayBadge: { fontSize: 8, color: C.accent, fontWeight: "700", marginTop: 1 },
+  todayBadge: { color: C.accent, fontWeight: "700", marginTop: 1 },
 
-  // ── SECTION CARD ──
   sectionCard: {
     backgroundColor: C.white,
-    borderRadius: 18,
-    padding: 14,
     borderWidth: 0.5,
     borderColor: C.border,
     shadowColor: "#000",
@@ -1079,30 +1357,19 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
-    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: C.borderLight,
   },
-  sectionTitleWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-  sectionTitle: { fontSize: 14, fontWeight: "700", color: C.primary },
-  sectionBadge: {
-    backgroundColor: C.accentLight,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  sectionBadgeText: { fontSize: 11, color: C.primary, fontWeight: "600" },
+  sectionTitleWrap: { flexDirection: "row", alignItems: "center" },
+  sectionTitle: { fontWeight: "700", color: C.primary },
+  sectionBadge: { backgroundColor: C.accentLight },
+  sectionBadgeText: { color: C.primary, fontWeight: "600" },
 
-  // ── WEEKLY ROWS ──
   weekRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: C.borderLight,
-    gap: 10,
   },
   weekRowToday: {
     backgroundColor: C.accentLight,
@@ -1110,41 +1377,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     marginHorizontal: -4,
   },
-  weekRowDay: {
-    width: 46,
-    alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    paddingVertical: 8,
-  },
+  weekRowDay: { alignItems: "center", backgroundColor: "#f8fafc" },
   weekRowDayToday: { backgroundColor: C.primary },
-  weekRowDayName: { fontSize: 12, fontWeight: "700", color: C.textSecondary },
-  weekRowDayDate: { fontSize: 9, color: C.textMuted, marginTop: 1 },
+  weekRowDayName: { fontWeight: "700", color: C.textSecondary },
+  weekRowDayDate: { color: C.textMuted, marginTop: 1 },
   weekRowDayTextToday: { color: C.white },
-  weekRowSlots: { flex: 1, gap: 4 },
-  weekRowEmpty: {
-    fontSize: 12,
-    color: C.textMuted,
-    fontStyle: "italic",
-    paddingVertical: 4,
-  },
-  weekRowMore: {
-    fontSize: 10,
-    color: C.primary,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  weekRowArrow: { fontSize: 18, color: C.textMuted, alignSelf: "center" },
+  weekRowSlots: { flex: 1 },
+  weekRowEmpty: { color: C.textMuted, fontStyle: "italic", paddingVertical: 4 },
+  weekRowMore: { color: C.primary, fontWeight: "600", marginTop: 2 },
+  weekRowArrow: { color: C.textMuted, alignSelf: "center" },
   miniChip: {
-    borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 4,
   },
-  miniChipText: { fontSize: 11, fontWeight: "500", flex: 1 },
-  miniExcBadge: { fontSize: 9, fontWeight: "700" },
+  miniChipText: { fontWeight: "500", flex: 1 },
+  miniExcBadge: { fontWeight: "700" },
 });

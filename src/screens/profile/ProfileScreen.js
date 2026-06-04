@@ -10,9 +10,10 @@ import {
   RefreshControl,
   Linking,
   Platform,
-  StatusBar,
   Alert,
+  useWindowDimensions, // ✅ Responsive + Landscape
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // ✅ Safe Area
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
@@ -42,9 +43,23 @@ const TABS = [
   { id: "college", icon: "🏛", label: "College" },
 ];
 
+// ✅ Scale hook
+const useScale = () => {
+  const { width } = useWindowDimensions();
+  return Math.min(Math.max(width / 390, 0.75), 1.25);
+};
+
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const navigation = useNavigation();
+
+  // ✅ Safe Area
+  const insets = useSafeAreaInsets();
+  // ✅ Responsive + Landscape
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const scale = useScale();
+  const rs = (size) => Math.round(size * scale);
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -121,34 +136,54 @@ export default function ProfileScreen() {
   const isDocEnabled = (type) =>
     documentConfig.some((d) => d.type === type && d.enabled);
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={s.loadingContainer}>
-        <Text style={{ fontSize: 52 }}>👤</Text>
+      <View
+        style={[
+          s.loadingContainer,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <Text style={{ fontSize: rs(52) }}>👤</Text>
         <ActivityIndicator
           size="large"
           color={C.primary}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: rs(16) }}
         />
-        <Text style={s.loadingText}>Loading Profile...</Text>
+        <Text style={[s.loadingText, { fontSize: rs(15) }]}>
+          Loading Profile...
+        </Text>
       </View>
     );
   }
 
+  // ── Error ──────────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <View style={s.errorContainer}>
-        <Text style={{ fontSize: 52, marginBottom: 12 }}>⚠️</Text>
-        <Text style={s.errorTitle}>Failed to Load Profile</Text>
-        <Text style={s.errorMsg}>{error}</Text>
+      <View
+        style={[s.errorContainer, { paddingTop: insets.top, padding: rs(24) }]}
+      >
+        <Text style={{ fontSize: rs(52), marginBottom: rs(12) }}>⚠️</Text>
+        <Text style={[s.errorTitle, { fontSize: rs(18) }]}>
+          Failed to Load Profile
+        </Text>
+        <Text style={[s.errorMsg, { fontSize: rs(13) }]}>{error}</Text>
         <TouchableOpacity
-          style={s.retryBtn}
+          style={[
+            s.retryBtn,
+            {
+              paddingHorizontal: rs(24),
+              paddingVertical: rs(12),
+              borderRadius: rs(10),
+            },
+          ]}
           onPress={() => {
             setLoading(true);
             fetchProfile();
           }}
         >
-          <Text style={s.retryBtnText}>🔄 Retry</Text>
+          <Text style={[s.retryBtnText, { fontSize: rs(14) }]}>🔄 Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -164,13 +199,403 @@ export default function ProfileScreen() {
     return true;
   });
 
-  return (
-    <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+  // ── Tab content ────────────────────────────────────────────────────────────
+  const tabContent = (
+    <>
+      {activeTab === "personal" && (
+        <Section title="Personal Information" icon="👤" rs={rs}>
+          <InfoRow
+            label="Full Name"
+            value={student?.fullName}
+            icon="👤"
+            rs={rs}
+          />
+          <InfoRow label="Gender" value={student?.gender} icon="⚧" rs={rs} />
+          <InfoRow
+            label="Date of Birth"
+            value={
+              student?.dateOfBirth
+                ? new Date(student.dateOfBirth).toLocaleDateString()
+                : null
+            }
+            icon="🗓"
+            rs={rs}
+          />
+          <InfoRow
+            label="Nationality"
+            value={student?.nationality}
+            icon="🌐"
+            rs={rs}
+          />
+          <InfoRow
+            label="Religion"
+            value={student?.religion}
+            icon="🕌"
+            rs={rs}
+          />
+          <InfoRow
+            label="Category"
+            value={student?.category}
+            icon="👥"
+            rs={rs}
+          />
+          <InfoRow
+            label="Blood Group"
+            value={student?.bloodGroup}
+            icon="🩸"
+            rs={rs}
+          />
+        </Section>
+      )}
+      {activeTab === "parent" && (
+        <Section title="Parent / Guardian" icon="👨‍👩‍👧" rs={rs}>
+          <InfoRow
+            label="Father's Name"
+            value={student?.fatherName}
+            icon="👨"
+            rs={rs}
+          />
+          <InfoRow
+            label="Father's Mobile"
+            value={student?.fatherMobile}
+            icon="📞"
+            rs={rs}
+          />
+          <InfoRow
+            label="Mother's Name"
+            value={student?.motherName}
+            icon="👩"
+            rs={rs}
+          />
+          <InfoRow
+            label="Mother's Mobile"
+            value={student?.motherMobile}
+            icon="📞"
+            rs={rs}
+          />
+        </Section>
+      )}
+      {activeTab === "academic" && (
+        <Section title="Academic Information" icon="📚" rs={rs}>
+          <InfoRow
+            label="Department"
+            value={department?.name}
+            icon="🏛"
+            rs={rs}
+          />
+          <InfoRow label="Course" value={course?.name} icon="🎓" rs={rs} />
+          <InfoRow label="Course Code" value={course?.code} icon="🔢" rs={rs} />
+          <InfoRow
+            label="Current Semester"
+            value={
+              student?.currentSemester
+                ? `Semester ${student.currentSemester}`
+                : null
+            }
+            icon="📅"
+            rs={rs}
+          />
+          <InfoRow
+            label="Admission Year"
+            value={student?.admissionYear}
+            icon="📆"
+            rs={rs}
+          />
+          <InfoRow
+            label="Academic Status"
+            value={student?.status}
+            icon="✅"
+            rs={rs}
+          />
+        </Section>
+      )}
+      {activeTab === "contact" && (
+        <Section title="Contact Information" icon="📞" rs={rs}>
+          <InfoRow label="Email" value={student?.email} icon="✉️" rs={rs} />
+          <InfoRow
+            label="Mobile"
+            value={student?.mobileNumber}
+            icon="📱"
+            rs={rs}
+          />
+        </Section>
+      )}
+      {activeTab === "address" && (
+        <Section title="Address Information" icon="🏠" rs={rs}>
+          <InfoRow
+            label="Address"
+            value={student?.addressLine}
+            icon="📍"
+            full
+            rs={rs}
+          />
+          <InfoRow label="City" value={student?.city} icon="🏙" rs={rs} />
+          <InfoRow label="State" value={student?.state} icon="🗺" rs={rs} />
+          <InfoRow label="Pincode" value={student?.pincode} icon="📮" rs={rs} />
+          <InfoRow label="Country" value={student?.country} icon="🌐" rs={rs} />
+        </Section>
+      )}
+      {activeTab === "documents" && (
+        <Section title="Uploaded Documents" icon="📄" rs={rs}>
+          <Text style={[s.docSubtitle, { fontSize: rs(13) }]}>
+            Documents uploaded during registration, verified by college admin.
+          </Text>
+          {isDocEnabled("10th_marksheet") && (
+            <DocCard
+              rs={rs}
+              icon="📄"
+              type="10th Marksheet"
+              name="Secondary School Certificate"
+              board={student?.sscBoard}
+              year={student?.sscPassingYear}
+              percentage={
+                student?.sscPercentage ? `${student.sscPercentage}%` : ""
+              }
+              filePath={student?.sscMarksheetPath}
+            />
+          )}
+          {isDocEnabled("12th_marksheet") && (
+            <DocCard
+              rs={rs}
+              icon="📋"
+              type="12th Marksheet"
+              name="Higher Secondary Certificate"
+              board={student?.hscBoard}
+              year={student?.hscPassingYear}
+              percentage={
+                student?.hscPercentage ? `${student.hscPercentage}%` : ""
+              }
+              filePath={student?.hscMarksheetPath}
+            />
+          )}
+          {isDocEnabled("passport_photo") && (
+            <DocCard
+              rs={rs}
+              icon="🖼"
+              type="Passport Photo"
+              name="Passport Size Photograph"
+              filePath={student?.passportPhotoPath}
+            />
+          )}
+          {isDocEnabled("aadhar_card") && (
+            <DocCard
+              rs={rs}
+              icon="🪪"
+              type="Aadhar Card"
+              name="Aadhar Card"
+              board="UIDAI"
+              filePath={student?.aadharCardPath}
+            />
+          )}
+          {isDocEnabled("income_certificate") && (
+            <DocCard
+              rs={rs}
+              icon="💰"
+              type="Income Certificate"
+              name="Family Income Certificate"
+              filePath={student?.incomeCertificatePath}
+            />
+          )}
+          {isDocEnabled("character_certificate") && (
+            <DocCard
+              rs={rs}
+              icon="📜"
+              type="Character Certificate"
+              name="Character Certificate"
+              board={student?.sscSchoolName}
+              filePath={student?.characterCertificatePath}
+            />
+          )}
+          {isDocEnabled("transfer_certificate") && (
+            <DocCard
+              rs={rs}
+              icon="📝"
+              type="Transfer Certificate"
+              name="School Leaving Certificate"
+              filePath={student?.transferCertificatePath}
+            />
+          )}
+          {isDocEnabled("migration_certificate") && (
+            <DocCard
+              rs={rs}
+              icon="📃"
+              type="Migration Certificate"
+              name="Migration Certificate"
+              filePath={student?.migrationCertificatePath}
+            />
+          )}
+          {isDocEnabled("domicile_certificate") && (
+            <DocCard
+              rs={rs}
+              icon="🏠"
+              type="Domicile Certificate"
+              name="Domicile Certificate"
+              filePath={student?.domicileCertificatePath}
+            />
+          )}
+          {isDocEnabled("caste_certificate") && student?.category !== "GEN" && (
+            <DocCard
+              rs={rs}
+              icon="📋"
+              type="Caste Certificate"
+              name="Caste Certificate"
+              filePath={student?.casteCertificatePath}
+            />
+          )}
+          {isDocEnabled("entrance_exam_score") && (
+            <DocCard
+              rs={rs}
+              icon="📊"
+              type="Entrance Exam Score"
+              name="Entrance Exam Score Card"
+              filePath={student?.entranceExamScorePath}
+            />
+          )}
+          {documentConfig.filter((d) => d.enabled).length === 0 && (
+            <View
+              style={[
+                s.noDocBox,
+                { borderRadius: rs(10), padding: rs(12), marginBottom: rs(12) },
+              ]}
+            >
+              <Text style={[s.noDocText, { fontSize: rs(13) }]}>
+                ⚠️ No documents configured by your college for this batch.
+              </Text>
+            </View>
+          )}
+          <View
+            style={[
+              s.docGuidelines,
+              { borderRadius: rs(10), padding: rs(12), marginTop: rs(8) },
+            ]}
+          >
+            <Text style={[s.docGuidelinesTitle, { fontSize: rs(13) }]}>
+              ℹ️ Document Guidelines
+            </Text>
+            {[
+              "All documents must be in PDF format",
+              "Maximum file size: 5MB per document",
+              "Ensure documents are clear and legible",
+              "Contact administration for verification",
+            ].map((t, i) => (
+              <Text
+                key={i}
+                style={[
+                  s.docGuidelinesItem,
+                  { fontSize: rs(12), marginBottom: rs(3) },
+                ]}
+              >
+                • {t}
+              </Text>
+            ))}
+          </View>
+        </Section>
+      )}
+      {activeTab === "college" && (
+        <Section title="College Information" icon="🏛" rs={rs}>
+          <InfoRow
+            label="College Name"
+            value={college?.name}
+            icon="🏛"
+            full
+            rs={rs}
+          />
+          <InfoRow label="Email" value={college?.email} icon="✉️" rs={rs} />
+          <InfoRow
+            label="Contact Number"
+            value={college?.contactNumber}
+            icon="📞"
+            rs={rs}
+          />
+          <InfoRow
+            label="Established Year"
+            value={college?.establishedYear}
+            icon="📅"
+            rs={rs}
+          />
+          <InfoRow
+            label="Address"
+            value={college?.address}
+            icon="📍"
+            full
+            rs={rs}
+          />
+        </Section>
+      )}
 
+      <TouchableOpacity
+        style={[
+          s.logoutBottomBtn,
+          {
+            marginTop: rs(4),
+            marginBottom: rs(16),
+            borderRadius: rs(14),
+            paddingVertical: rs(14),
+          },
+        ]}
+        onPress={handleLogout}
+      >
+        <Text style={[s.logoutBottomBtnText, { fontSize: rs(15) }]}>
+          🚪 Logout
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  // ── Tab bar ────────────────────────────────────────────────────────────────
+  const tabBar = (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={[s.tabBar, { borderRadius: rs(14), maxHeight: rs(64) }]}
+      contentContainerStyle={[s.tabBarContent, { paddingHorizontal: rs(8) }]}
+    >
+      {visibleTabs.map((tab) => (
+        <TouchableOpacity
+          key={tab.id}
+          style={[
+            s.tab,
+            activeTab === tab.id && s.tabActive,
+            {
+              paddingHorizontal: rs(14),
+              paddingVertical: rs(10),
+              minWidth: rs(64),
+            },
+          ]}
+          onPress={() => setActiveTab(tab.id)}
+        >
+          <Text style={{ fontSize: rs(18), marginBottom: rs(2) }}>
+            {tab.icon}
+          </Text>
+          <Text
+            style={[
+              s.tabLabel,
+              activeTab === tab.id && s.tabLabelActive,
+              { fontSize: rs(10) },
+            ]}
+          >
+            {tab.label}
+          </Text>
+          {activeTab === tab.id && <View style={s.tabIndicator} />}
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  return (
+    <View
+      style={[s.root, { paddingLeft: insets.left, paddingRight: insets.right }]}
+    >
       <Animated.ScrollView
         style={[s.scroll, { opacity: fadeAnim }]}
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[
+          s.scrollContent,
+          {
+            padding: rs(14),
+            gap: rs(12),
+            paddingBottom: insets.bottom + rs(32),
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -180,335 +605,121 @@ export default function ProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── SIMPLIFIED WELCOME CARD ── */}
-        <View style={s.welcomeCard}>
-          {/* Decorative circles */}
+        {/* ── WELCOME CARD — ✅ paddingTop = insets.top, NO hardcoded hacks ── */}
+        <View
+          style={[
+            s.welcomeCard,
+            {
+              borderRadius: rs(16),
+              paddingHorizontal: rs(16),
+              paddingTop: insets.top + rs(14),
+              paddingBottom: rs(16),
+              marginBottom: rs(2),
+            },
+          ]}
+        >
           <View style={s.circleTop} />
           <View style={s.circleBottom} />
-
           <View style={s.welcomeRow}>
-            {/* Back button */}
             <TouchableOpacity
-              style={s.backBtn}
+              style={[
+                s.backBtn,
+                { width: rs(34), height: rs(34), borderRadius: rs(10) },
+              ]}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
             >
-              <Text style={s.backBtnText}>←</Text>
+              <Text style={[s.backBtnText, { fontSize: rs(20) }]}>←</Text>
             </TouchableOpacity>
-
-            {/* Title */}
-            <Text style={s.welcomeTitle}>My Profile</Text>
-
-            {/* Edit button */}
+            <Text style={[s.welcomeTitle, { fontSize: rs(16) }]}>
+              My Profile
+            </Text>
             <TouchableOpacity
-              style={s.editBtn}
+              style={[
+                s.editBtn,
+                { width: rs(34), height: rs(34), borderRadius: rs(10) },
+              ]}
               onPress={() => navigation.navigate("EditProfile")}
               hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
             >
-              <Text style={s.editBtnText}>✏️</Text>
+              <Text style={{ fontSize: rs(16) }}>✏️</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── TAB BAR ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.tabBar}
-          contentContainerStyle={s.tabBarContent}
-        >
-          {visibleTabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[s.tab, activeTab === tab.id && s.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Text style={s.tabIcon}>{tab.icon}</Text>
-              <Text
-                style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}
-              >
-                {tab.label}
-              </Text>
-              {activeTab === tab.id && <View style={s.tabIndicator} />}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {tabBar}
 
-        {/* ── TAB CONTENT ── */}
-        {activeTab === "personal" && (
-          <Section title="Personal Information" icon="👤">
-            <InfoRow label="Full Name" value={student?.fullName} icon="👤" />
-            <InfoRow label="Gender" value={student?.gender} icon="⚧" />
-            <InfoRow
-              label="Date of Birth"
-              value={
-                student?.dateOfBirth
-                  ? new Date(student.dateOfBirth).toLocaleDateString()
-                  : null
-              }
-              icon="🗓"
-            />
-            <InfoRow
-              label="Nationality"
-              value={student?.nationality}
-              icon="🌐"
-            />
-            <InfoRow label="Religion" value={student?.religion} icon="🕌" />
-            <InfoRow label="Category" value={student?.category} icon="👥" />
-            <InfoRow
-              label="Blood Group"
-              value={student?.bloodGroup}
-              icon="🩸"
-            />
-          </Section>
-        )}
-
-        {activeTab === "parent" && (
-          <Section title="Parent / Guardian" icon="👨‍👩‍👧">
-            <InfoRow
-              label="Father's Name"
-              value={student?.fatherName}
-              icon="👨"
-            />
-            <InfoRow
-              label="Father's Mobile"
-              value={student?.fatherMobile}
-              icon="📞"
-            />
-            <InfoRow
-              label="Mother's Name"
-              value={student?.motherName}
-              icon="👩"
-            />
-            <InfoRow
-              label="Mother's Mobile"
-              value={student?.motherMobile}
-              icon="📞"
-            />
-          </Section>
-        )}
-
-        {activeTab === "academic" && (
-          <Section title="Academic Information" icon="📚">
-            <InfoRow label="Department" value={department?.name} icon="🏛" />
-            <InfoRow label="Course" value={course?.name} icon="🎓" />
-            <InfoRow label="Course Code" value={course?.code} icon="🔢" />
-            <InfoRow
-              label="Current Semester"
-              value={
-                student?.currentSemester
-                  ? `Semester ${student.currentSemester}`
-                  : null
-              }
-              icon="📅"
-            />
-            <InfoRow
-              label="Admission Year"
-              value={student?.admissionYear}
-              icon="📆"
-            />
-            <InfoRow
-              label="Academic Status"
-              value={student?.status}
-              icon="✅"
-            />
-          </Section>
-        )}
-
-        {activeTab === "contact" && (
-          <Section title="Contact Information" icon="📞">
-            <InfoRow label="Email" value={student?.email} icon="✉️" />
-            <InfoRow label="Mobile" value={student?.mobileNumber} icon="📱" />
-          </Section>
-        )}
-
-        {activeTab === "address" && (
-          <Section title="Address Information" icon="🏠">
-            <InfoRow
-              label="Address"
-              value={student?.addressLine}
-              icon="📍"
-              full
-            />
-            <InfoRow label="City" value={student?.city} icon="🏙" />
-            <InfoRow label="State" value={student?.state} icon="🗺" />
-            <InfoRow label="Pincode" value={student?.pincode} icon="📮" />
-            <InfoRow label="Country" value={student?.country} icon="🌐" />
-          </Section>
-        )}
-
-        {activeTab === "documents" && (
-          <Section title="Uploaded Documents" icon="📄">
-            <Text style={s.docSubtitle}>
-              Documents uploaded during registration, verified by college admin.
-            </Text>
-            {isDocEnabled("10th_marksheet") && (
-              <DocCard
-                icon="📄"
-                type="10th Marksheet"
-                name="Secondary School Certificate"
-                board={student?.sscBoard}
-                year={student?.sscPassingYear}
-                percentage={
-                  student?.sscPercentage ? `${student.sscPercentage}%` : ""
-                }
-                filePath={student?.sscMarksheetPath}
-              />
-            )}
-            {isDocEnabled("12th_marksheet") && (
-              <DocCard
-                icon="📋"
-                type="12th Marksheet"
-                name="Higher Secondary Certificate"
-                board={student?.hscBoard}
-                year={student?.hscPassingYear}
-                percentage={
-                  student?.hscPercentage ? `${student.hscPercentage}%` : ""
-                }
-                filePath={student?.hscMarksheetPath}
-              />
-            )}
-            {isDocEnabled("passport_photo") && (
-              <DocCard
-                icon="🖼"
-                type="Passport Photo"
-                name="Passport Size Photograph"
-                filePath={student?.passportPhotoPath}
-              />
-            )}
-            {isDocEnabled("aadhar_card") && (
-              <DocCard
-                icon="🪪"
-                type="Aadhar Card"
-                name="Aadhar Card"
-                board="UIDAI"
-                filePath={student?.aadharCardPath}
-              />
-            )}
-            {isDocEnabled("income_certificate") && (
-              <DocCard
-                icon="💰"
-                type="Income Certificate"
-                name="Family Income Certificate"
-                filePath={student?.incomeCertificatePath}
-              />
-            )}
-            {isDocEnabled("character_certificate") && (
-              <DocCard
-                icon="📜"
-                type="Character Certificate"
-                name="Character Certificate"
-                board={student?.sscSchoolName}
-                filePath={student?.characterCertificatePath}
-              />
-            )}
-            {isDocEnabled("transfer_certificate") && (
-              <DocCard
-                icon="📝"
-                type="Transfer Certificate"
-                name="School Leaving Certificate"
-                filePath={student?.transferCertificatePath}
-              />
-            )}
-            {isDocEnabled("migration_certificate") && (
-              <DocCard
-                icon="📃"
-                type="Migration Certificate"
-                name="Migration Certificate"
-                filePath={student?.migrationCertificatePath}
-              />
-            )}
-            {isDocEnabled("domicile_certificate") && (
-              <DocCard
-                icon="🏠"
-                type="Domicile Certificate"
-                name="Domicile Certificate"
-                filePath={student?.domicileCertificatePath}
-              />
-            )}
-            {isDocEnabled("caste_certificate") &&
-              student?.category !== "GEN" && (
-                <DocCard
-                  icon="📋"
-                  type="Caste Certificate"
-                  name="Caste Certificate"
-                  filePath={student?.casteCertificatePath}
-                />
-              )}
-            {isDocEnabled("entrance_exam_score") && (
-              <DocCard
-                icon="📊"
-                type="Entrance Exam Score"
-                name="Entrance Exam Score Card"
-                filePath={student?.entranceExamScorePath}
-              />
-            )}
-            {documentConfig.filter((d) => d.enabled).length === 0 && (
-              <View style={s.noDocBox}>
-                <Text style={s.noDocText}>
-                  ⚠️ No documents configured by your college for this batch.
-                </Text>
-              </View>
-            )}
-            <View style={s.docGuidelines}>
-              <Text style={s.docGuidelinesTitle}>ℹ️ Document Guidelines</Text>
-              <Text style={s.docGuidelinesItem}>
-                • All documents must be in PDF format
-              </Text>
-              <Text style={s.docGuidelinesItem}>
-                • Maximum file size: 5MB per document
-              </Text>
-              <Text style={s.docGuidelinesItem}>
-                • Ensure documents are clear and legible
-              </Text>
-              <Text style={s.docGuidelinesItem}>
-                • Contact administration for verification
-              </Text>
+        {/* ✅ Landscape: 2-col layout — tab content fills right pane */}
+        {isLandscape ? (
+          <View style={{ flexDirection: "row", gap: rs(12) }}>
+            {/* Left: vertical tab list */}
+            <View style={{ width: rs(90), gap: rs(4) }}>
+              {visibleTabs.map((tab) => (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    {
+                      borderRadius: rs(10),
+                      padding: rs(10),
+                      alignItems: "center",
+                      backgroundColor: C.white,
+                      borderWidth: 1,
+                      borderColor: C.border,
+                    },
+                    activeTab === tab.id && {
+                      backgroundColor: C.primary,
+                      borderColor: C.primary,
+                    },
+                  ]}
+                  onPress={() => setActiveTab(tab.id)}
+                >
+                  <Text style={{ fontSize: rs(16) }}>{tab.icon}</Text>
+                  <Text
+                    style={[
+                      {
+                        fontSize: rs(9),
+                        color: C.textMuted,
+                        marginTop: rs(2),
+                        fontWeight: "600",
+                      },
+                      activeTab === tab.id && { color: C.white },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </Section>
+            {/* Right: content */}
+            <View style={{ flex: 1 }}>{tabContent}</View>
+          </View>
+        ) : (
+          tabContent
         )}
-
-        {activeTab === "college" && (
-          <Section title="College Information" icon="🏛">
-            <InfoRow
-              label="College Name"
-              value={college?.name}
-              icon="🏛"
-              full
-            />
-            <InfoRow label="Email" value={college?.email} icon="✉️" />
-            <InfoRow
-              label="Contact Number"
-              value={college?.contactNumber}
-              icon="📞"
-            />
-            <InfoRow
-              label="Established Year"
-              value={college?.establishedYear}
-              icon="📅"
-            />
-            <InfoRow label="Address" value={college?.address} icon="📍" full />
-          </Section>
-        )}
-
-        {/* Logout Bottom Button */}
-        <TouchableOpacity style={s.logoutBottomBtn} onPress={handleLogout}>
-          <Text style={s.logoutBottomBtnText}>🚪 Logout</Text>
-        </TouchableOpacity>
       </Animated.ScrollView>
     </View>
   );
 }
 
 // ─── SECTION ─────────────────────────────────────────────────────────────────
-function Section({ title, icon, children }) {
+function Section({ title, icon, children, rs }) {
   return (
-    <View style={sec.card}>
-      <View style={sec.header}>
-        <View style={sec.iconWrap}>
-          <Text style={{ fontSize: 16 }}>{icon}</Text>
+    <View style={[sec.card, { borderRadius: rs(18), padding: rs(16) }]}>
+      <View
+        style={[
+          sec.header,
+          { gap: rs(10), marginBottom: rs(14), paddingBottom: rs(12) },
+        ]}
+      >
+        <View
+          style={[
+            sec.iconWrap,
+            { width: rs(34), height: rs(34), borderRadius: rs(10) },
+          ]}
+        >
+          <Text style={{ fontSize: rs(16) }}>{icon}</Text>
         </View>
-        <Text style={sec.title}>{title}</Text>
+        <Text style={[sec.title, { fontSize: rs(15) }]}>{title}</Text>
       </View>
       {children}
     </View>
@@ -517,8 +728,6 @@ function Section({ title, icon, children }) {
 const sec = StyleSheet.create({
   card: {
     backgroundColor: C.white,
-    borderRadius: 18,
-    padding: 16,
     borderWidth: 0.5,
     borderColor: C.border,
     shadowColor: "#000",
@@ -530,33 +739,39 @@ const sec = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: C.borderLight,
   },
   iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
     backgroundColor: "#e3f2fd",
     justifyContent: "center",
     alignItems: "center",
   },
-  title: { fontSize: 15, fontWeight: "700", color: C.primary },
+  title: { fontWeight: "700", color: C.primary },
 });
 
 // ─── INFO ROW ─────────────────────────────────────────────────────────────────
-function InfoRow({ label, value, icon, full }) {
+function InfoRow({ label, value, icon, full, rs }) {
   return (
-    <View style={ir.row}>
-      <View style={ir.iconWrap}>
-        <Text style={{ fontSize: 14 }}>{icon}</Text>
+    <View style={[ir.row, { gap: rs(10), paddingVertical: rs(10) }]}>
+      <View
+        style={[
+          ir.iconWrap,
+          {
+            width: rs(28),
+            height: rs(28),
+            borderRadius: rs(8),
+            marginTop: rs(2),
+          },
+        ]}
+      >
+        <Text style={{ fontSize: rs(14) }}>{icon}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={ir.label}>{label}</Text>
-        <Text style={ir.value}>{value || "N/A"}</Text>
+        <Text style={[ir.label, { fontSize: rs(10), marginBottom: rs(2) }]}>
+          {label}
+        </Text>
+        <Text style={[ir.value, { fontSize: rs(14) }]}>{value || "N/A"}</Text>
       </View>
     </View>
   );
@@ -565,69 +780,75 @@ const ir = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
   iconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
     backgroundColor: "#f8fafc",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 2,
   },
   label: {
-    fontSize: 10,
     color: C.textMuted,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 2,
   },
-  value: { fontSize: 14, color: C.textPrimary, fontWeight: "500" },
+  value: { color: C.textPrimary, fontWeight: "500" },
 });
 
 // ─── DOC CARD ─────────────────────────────────────────────────────────────────
-function DocCard({ icon, type, name, board, year, percentage, filePath }) {
+function DocCard({ icon, type, name, board, year, percentage, filePath, rs }) {
   const hasFile =
     filePath && String(filePath).trim() !== "" && filePath !== "null";
   const baseUrl = "http://localhost:5000";
-
   const handleView = () => {
     if (!hasFile) {
       Alert.alert("Not Available", "Document not uploaded yet.");
       return;
     }
     const fileName = filePath.split("/").pop();
-    const url = `${baseUrl}/api/students/documents/${fileName}`;
-    Linking.openURL(url).catch(() =>
+    Linking.openURL(`${baseUrl}/api/students/documents/${fileName}`).catch(() =>
       Alert.alert("Error", "Could not open document."),
     );
   };
-
   return (
-    <View style={dc.card}>
-      <View style={dc.topRow}>
-        <View style={dc.iconBox}>
-          <Text style={{ fontSize: 22 }}>{icon}</Text>
+    <View
+      style={[
+        dc.card,
+        { borderRadius: rs(14), padding: rs(12), marginBottom: rs(10) },
+      ]}
+    >
+      <View style={[dc.topRow, { gap: rs(10), marginBottom: rs(8) }]}>
+        <View
+          style={[
+            dc.iconBox,
+            { width: rs(44), height: rs(44), borderRadius: rs(12) },
+          ]}
+        >
+          <Text style={{ fontSize: rs(22) }}>{icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={dc.type}>{type}</Text>
-          <Text style={dc.name}>{name}</Text>
+          <Text style={[dc.type, { fontSize: rs(11) }]}>{type}</Text>
+          <Text style={[dc.name, { fontSize: rs(13), marginTop: rs(2) }]}>
+            {name}
+          </Text>
         </View>
         <View
           style={[
             dc.statusPill,
-            { backgroundColor: hasFile ? "#dcfce7" : "#fee2e2" },
+            {
+              borderRadius: rs(20),
+              paddingHorizontal: rs(8),
+              paddingVertical: rs(3),
+              backgroundColor: hasFile ? "#dcfce7" : "#fee2e2",
+            },
           ]}
         >
           <Text
             style={[
               dc.statusPillText,
-              { color: hasFile ? C.success : C.danger },
+              { fontSize: rs(10), color: hasFile ? C.success : C.danger },
             ]}
           >
             {hasFile ? "✓ Uploaded" : "✗ Missing"}
@@ -635,22 +856,35 @@ function DocCard({ icon, type, name, board, year, percentage, filePath }) {
         </View>
       </View>
       {(board || year || percentage) && (
-        <View style={dc.metaRow}>
-          {board && <Text style={dc.meta}>🏫 {board}</Text>}
-          {year && <Text style={dc.meta}>📅 {year}</Text>}
+        <View style={[dc.metaRow, { gap: rs(10), marginBottom: rs(8) }]}>
+          {board && (
+            <Text style={[dc.meta, { fontSize: rs(11) }]}>🏫 {board}</Text>
+          )}
+          {year && (
+            <Text style={[dc.meta, { fontSize: rs(11) }]}>📅 {year}</Text>
+          )}
           {percentage && (
-            <Text style={[dc.meta, { color: C.success, fontWeight: "700" }]}>
+            <Text
+              style={[
+                dc.meta,
+                { fontSize: rs(11), color: C.success, fontWeight: "700" },
+              ]}
+            >
               {percentage}
             </Text>
           )}
         </View>
       )}
       <TouchableOpacity
-        style={[dc.viewBtn, !hasFile && { opacity: 0.45 }]}
+        style={[
+          dc.viewBtn,
+          { borderRadius: rs(10), paddingVertical: rs(10) },
+          !hasFile && { opacity: 0.45 },
+        ]}
         onPress={handleView}
         disabled={!hasFile}
       >
-        <Text style={dc.viewBtnText}>
+        <Text style={[dc.viewBtnText, { fontSize: rs(13) }]}>
           {hasFile ? "📂 View Document" : "❌ Not Uploaded"}
         </Text>
       </TouchableOpacity>
@@ -658,104 +892,53 @@ function DocCard({ icon, type, name, board, year, percentage, filePath }) {
   );
 }
 const dc = StyleSheet.create({
-  card: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 12,
-    marginBottom: 10,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginBottom: 8,
-  },
+  card: { backgroundColor: "#f8fafc", borderWidth: 1, borderColor: C.border },
+  topRow: { flexDirection: "row", alignItems: "flex-start" },
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
     backgroundColor: "#e3f2fd",
     justifyContent: "center",
     alignItems: "center",
   },
   type: {
-    fontSize: 11,
     fontWeight: "700",
     color: C.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  name: { fontSize: 13, color: C.textPrimary, fontWeight: "500", marginTop: 2 },
-  statusPill: {
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: "flex-start",
-  },
-  statusPillText: { fontSize: 10, fontWeight: "700" },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 },
-  meta: { fontSize: 11, color: C.textSecondary },
-  viewBtn: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  viewBtnText: { color: C.white, fontSize: 13, fontWeight: "600" },
+  name: { color: C.textPrimary, fontWeight: "500" },
+  statusPill: { alignSelf: "flex-start" },
+  statusPillText: { fontWeight: "700" },
+  metaRow: { flexDirection: "row", flexWrap: "wrap" },
+  meta: { color: C.textSecondary },
+  viewBtn: { backgroundColor: C.primary, alignItems: "center" },
+  viewBtnText: { color: C.white, fontWeight: "600" },
 });
 
-// ─── MAIN STYLES ─────────────────────────────────────────────────────────────
+// ─── MAIN STYLES ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: C.bg,
   },
-  loadingText: { marginTop: 12, fontSize: 15, color: C.textSecondary },
-
+  loadingText: { marginTop: 12, color: C.textSecondary },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: C.bg,
-    padding: 24,
   },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: C.textPrimary,
-    marginBottom: 6,
-  },
-  errorMsg: {
-    fontSize: 13,
-    color: C.textSecondary,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryBtn: {
-    backgroundColor: C.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  retryBtnText: { color: C.white, fontWeight: "700", fontSize: 14 },
+  errorTitle: { fontWeight: "700", color: C.textPrimary, marginBottom: 6 },
+  errorMsg: { color: C.textSecondary, textAlign: "center", marginBottom: 20 },
+  retryBtn: { backgroundColor: C.primary },
+  retryBtnText: { color: C.white, fontWeight: "700" },
 
-  // ── SIMPLIFIED WELCOME CARD ──
   welcomeCard: {
     backgroundColor: C.primary,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingTop:
-      Platform.OS === "ios" ? 52 : (StatusBar.currentHeight || 24) + 12,
-    paddingBottom: 16,
     overflow: "hidden",
     position: "relative",
-    marginBottom: 2,
   },
   circleTop: {
     position: "absolute",
@@ -781,59 +964,31 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   welcomeTitle: {
-    fontSize: 16,
     fontWeight: "700",
     color: C.white,
     flex: 1,
     textAlign: "center",
   },
   backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  backBtnText: {
-    color: C.white,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
+  backBtnText: { color: C.white, fontWeight: "700", lineHeight: 24 },
   editBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  editBtnText: { fontSize: 16 },
 
-  // ── SCROLL ──
   scroll: { flex: 1 },
-  scrollContent: { padding: 14, gap: 12, paddingBottom: 32 },
+  scrollContent: { flexGrow: 1 },
 
-  // ── TAB BAR ──
-  tabBar: {
-    backgroundColor: C.white,
-    maxHeight: 64,
-    borderRadius: 14,
-    borderWidth: 0.5,
-    borderColor: C.border,
-  },
-  tabBarContent: { paddingHorizontal: 8, alignItems: "center" },
-  tab: {
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    position: "relative",
-    minWidth: 64,
-  },
+  tabBar: { backgroundColor: C.white, borderWidth: 0.5, borderColor: C.border },
+  tabBarContent: { alignItems: "center" },
+  tab: { alignItems: "center", position: "relative" },
   tabActive: {},
-  tabIcon: { fontSize: 18, marginBottom: 2 },
-  tabLabel: { fontSize: 10, color: C.textMuted, fontWeight: "500" },
+  tabLabel: { color: C.textMuted, fontWeight: "500" },
   tabLabelActive: { color: C.primary, fontWeight: "700" },
   tabIndicator: {
     position: "absolute",
@@ -845,44 +1000,22 @@ const s = StyleSheet.create({
     borderRadius: 1,
   },
 
-  // ── DOCS ──
-  docSubtitle: {
-    fontSize: 13,
-    color: C.textSecondary,
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  noDocBox: {
-    backgroundColor: "#fef3c7",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-  },
-  noDocText: { fontSize: 13, color: "#92400e" },
-  docGuidelines: {
-    backgroundColor: "#f0f4f8",
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-  },
+  docSubtitle: { color: C.textSecondary, lineHeight: 18 },
+  noDocBox: { backgroundColor: "#fef3c7" },
+  noDocText: { color: "#92400e" },
+  docGuidelines: { backgroundColor: "#f0f4f8" },
   docGuidelinesTitle: {
-    fontSize: 13,
     fontWeight: "700",
     color: C.textPrimary,
     marginBottom: 6,
   },
-  docGuidelinesItem: { fontSize: 12, color: C.textSecondary, marginBottom: 3 },
+  docGuidelinesItem: { color: C.textSecondary },
 
-  // ── LOGOUT ──
   logoutBottomBtn: {
-    marginTop: 4,
-    marginBottom: 16,
     backgroundColor: "#fee2e2",
-    borderRadius: 14,
-    paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#fecaca",
   },
-  logoutBottomBtnText: { color: C.danger, fontSize: 15, fontWeight: "700" },
+  logoutBottomBtnText: { color: C.danger, fontWeight: "700" },
 });

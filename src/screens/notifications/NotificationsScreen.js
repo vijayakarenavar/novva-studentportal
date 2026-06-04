@@ -7,9 +7,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
-  Platform,
-  StatusBar,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../services/api";
 
@@ -17,7 +17,7 @@ const C = {
   primary: "#1a4b6d",
   primaryDark: "#0f3a4a",
   white: "#ffffff",
-  bg: "#f0f4f8",
+  bg: "#f1f5f9",
   border: "#e2e8f0",
 };
 
@@ -67,6 +67,7 @@ const formatDate = (dateString) => {
   });
 };
 
+// ─── NOTIF CARD ───────────────────────────────────────────────────────────────
 const NotifCard = ({ note }) => {
   const [expanded, setExpanded] = useState(false);
   const type = note.type || "GENERAL";
@@ -81,29 +82,29 @@ const NotifCard = ({ note }) => {
   return (
     <View
       style={[
-        styles.card,
-        isUrgent && !isExpired && styles.urgentCard,
-        isExpired && styles.expiredCard,
+        st.card,
+        isUrgent && !isExpired && st.urgentCard,
+        isExpired && st.expiredCard,
       ]}
     >
       <View
         style={[
-          styles.cardBar,
+          st.cardBar,
           { backgroundColor: isExpired ? "#9ca3af" : typeInfo.color },
         ]}
       />
-      <View style={styles.cardHeader}>
-        <View style={styles.badgeRow}>
+      <View style={st.cardHeader}>
+        <View style={st.badgeRow}>
           <View
             style={[
-              styles.badge,
+              st.badge,
               { backgroundColor: isExpired ? "#e5e7eb" : typeInfo.bg },
             ]}
           >
             <Text style={{ fontSize: 11 }}>{typeInfo.icon}</Text>
             <Text
               style={[
-                styles.badgeText,
+                st.badgeText,
                 { color: isExpired ? "#6b7280" : typeInfo.color },
               ]}
             >
@@ -111,48 +112,44 @@ const NotifCard = ({ note }) => {
             </Text>
           </View>
           {isExpired && (
-            <View style={[styles.badge, { backgroundColor: "#fee2e2" }]}>
-              <Text style={[styles.badgeText, { color: "#dc2626" }]}>
-                Expired
-              </Text>
+            <View style={[st.badge, { backgroundColor: "#fee2e2" }]}>
+              <Text style={[st.badgeText, { color: "#dc2626" }]}>Expired</Text>
             </View>
           )}
         </View>
-        <View
-          style={[styles.priorityBadge, { backgroundColor: priorityInfo.bg }]}
-        >
+        <View style={[st.priorityBadge, { backgroundColor: priorityInfo.bg }]}>
           {isUrgent && <Text style={{ fontSize: 10 }}>⚠️ </Text>}
-          <Text style={[styles.badgeText, { color: priorityInfo.color }]}>
+          <Text style={[st.badgeText, { color: priorityInfo.color }]}>
             {priorityInfo.label}
           </Text>
         </View>
       </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.cardTitle, isExpired && { color: "#9ca3af" }]}>
+      <View style={st.cardBody}>
+        <Text style={[st.cardTitle, isExpired && { color: "#9ca3af" }]}>
           {note.title}
         </Text>
-        <Text style={[styles.cardMessage, isExpired && { color: "#9ca3af" }]}>
+        <Text style={[st.cardMessage, isExpired && { color: "#9ca3af" }]}>
           {needsTruncation && !expanded
             ? note.message.substring(0, MESSAGE_LIMIT) + "..."
             : note.message}
         </Text>
         {needsTruncation && (
           <TouchableOpacity onPress={() => setExpanded(!expanded)}>
-            <Text style={styles.readMore}>
+            <Text style={st.readMore}>
               {expanded ? "▲ Show Less" : "▼ Read More"}
             </Text>
           </TouchableOpacity>
         )}
-        <View style={styles.cardFooter}>
-          <Text style={styles.dateText}>🕐 {formatDate(note.createdAt)}</Text>
+        <View style={st.cardFooter}>
+          <Text style={st.dateText}>🕐 {formatDate(note.createdAt)}</Text>
           {note.createdBy?.name && (
-            <Text style={styles.senderText}>👤 {note.createdBy.name}</Text>
+            <Text style={st.senderText}>👤 {note.createdBy.name}</Text>
           )}
         </View>
         {note.expiresAt && (
           <View
             style={[
-              styles.expiryBox,
+              st.expiryBox,
               { backgroundColor: isExpired ? "#fee2e2" : "#fef3c7" },
             ]}
           >
@@ -173,32 +170,112 @@ const NotifCard = ({ note }) => {
   );
 };
 
+// ─── SECTION HEADER ───────────────────────────────────────────────────────────
 const SectionHeader = ({ icon, title, count, color }) => (
-  <View style={[styles.sectionHeader, { borderLeftColor: color }]}>
-    <Text style={styles.sectionIcon}>{icon}</Text>
-    <Text style={[styles.sectionTitle, { color }]}>{title}</Text>
-    <View style={[styles.countBadge, { backgroundColor: color }]}>
-      <Text style={styles.countText}>{count}</Text>
+  <View style={[st.sectionHeader, { borderLeftColor: color }]}>
+    <Text style={st.sectionIcon}>{icon}</Text>
+    <Text style={[st.sectionTitle, { color }]}>{title}</Text>
+    <View style={[st.countBadge, { backgroundColor: color }]}>
+      <Text style={st.countText}>{count}</Text>
     </View>
   </View>
 );
 
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 const NotificationsScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets(); // ✅ Safe Area
+  const { width } = useWindowDimensions(); // ✅ Responsive
+
   const [adminNotifs, setAdminNotifs] = useState([]);
   const [teacherNotifs, setTeacherNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // ─── PARSE HELPER ───────────────────────────────────────────────────────────
+  const parseNotifications = (raw) => {
+    let adminList = [];
+    let teacherList = [];
+
+    // flat array: { data: [...] }
+    if (Array.isArray(raw?.data)) {
+      const all = raw.data;
+      adminList = all.filter(
+        (n) =>
+          n.createdByRole === "COLLEGE_ADMIN" || n.createdByRole === "ADMIN",
+      );
+      teacherList = all.filter((n) => n.createdByRole === "TEACHER");
+    }
+    // nested object: { data: { adminNotifications[], teacherNotifications[] } }
+    else if (
+      raw?.data?.adminNotifications !== undefined ||
+      raw?.data?.teacherNotifications !== undefined
+    ) {
+      adminList = raw.data.adminNotifications || [];
+      teacherList = raw.data.teacherNotifications || [];
+    }
+    // direct object: { adminNotifications[], teacherNotifications[] }
+    else if (
+      raw?.adminNotifications !== undefined ||
+      raw?.teacherNotifications !== undefined
+    ) {
+      adminList = raw.adminNotifications || [];
+      teacherList = raw.teacherNotifications || [];
+    }
+    // direct flat array
+    else if (Array.isArray(raw)) {
+      adminList = raw.filter(
+        (n) =>
+          n.createdByRole === "COLLEGE_ADMIN" || n.createdByRole === "ADMIN",
+      );
+      teacherList = raw.filter((n) => n.createdByRole === "TEACHER");
+    }
+
+    return { adminList, teacherList };
+  };
+
+  // ─── FETCH ──────────────────────────────────────────────────────────────────
   const fetchNotifications = async () => {
     try {
       setError(null);
-      const res = await api.get("/notifications/student/read");
-      const data = res.data.data || res.data;
-      setAdminNotifs(data.adminNotifications || []);
-      setTeacherNotifs(data.teacherNotifications || []);
+
+      // ✅ Donhi endpoints try karto — jo jast notifications detoy to vaprto
+      const endpoints = [
+        "/notifications/student",
+        "/notifications/student/read",
+      ];
+      let bestAdmin = [];
+      let bestTeacher = [];
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await api.get(endpoint);
+          const { adminList, teacherList } = parseNotifications(res.data);
+          const total = adminList.length + teacherList.length;
+          const bestTotal = bestAdmin.length + bestTeacher.length;
+
+          console.log(
+            `[${endpoint}] Admin: ${adminList.length}, Teacher: ${teacherList.length}`,
+          );
+
+          // Jo endpoint jast data detoy to vaprto
+          if (total > bestTotal) {
+            bestAdmin = adminList;
+            bestTeacher = teacherList;
+          }
+        } catch (e) {
+          console.log(`[${endpoint}] failed:`, e.message);
+        }
+      }
+
+      console.log(
+        `✅ Final — Admin: ${bestAdmin.length}, Teacher: ${bestTeacher.length}`,
+      );
+      setAdminNotifs(bestAdmin);
+      setTeacherNotifs(bestTeacher);
     } catch (err) {
+      console.error("Notifications fetch error:", err.message);
       setError("Failed to load notifications");
     } finally {
       setLoading(false);
@@ -217,41 +294,54 @@ const NotificationsScreen = () => {
 
   const totalCount = adminNotifs.length + teacherNotifs.length;
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View
+        style={[
+          st.centered,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
         <ActivityIndicator size="large" color={C.primary} />
-        <Text style={styles.loadingText}>Loading notifications...</Text>
+        <Text style={st.loadingText}>Loading notifications...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
-
-      {/* ── NAVY APP BAR ── */}
-      <View style={styles.topBar}>
-        <View style={styles.circle1} />
-        <View style={styles.circle2} />
-        <View style={styles.topBarRow}>
+    // ✅ Root handles left/right insets (landscape notch)
+    <View
+      style={[
+        st.container,
+        { paddingLeft: insets.left, paddingRight: insets.right },
+      ]}
+    >
+      {/* ✅ TOP BAR — insets.top instead of StatusBar hack */}
+      <View style={[st.topBar, { paddingTop: insets.top + 14 }]}>
+        <View style={st.circle1} />
+        <View style={st.circle2} />
+        <View style={st.topBarRow}>
           <TouchableOpacity
-            style={styles.topBackBtn}
+            style={st.topBackBtn}
             onPress={() => navigation.goBack()}
             hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
           >
-            <Text style={styles.topBackBtnText}>←</Text>
+            <Text style={st.topBackBtnText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>Notifications</Text>
-          <View style={styles.totalBadge}>
-            <Text style={styles.totalText}>{totalCount}</Text>
+          <Text style={st.topBarTitle}>Notifications</Text>
+          <View style={st.totalBadge}>
+            <Text style={st.totalText}>{totalCount}</Text>
           </View>
         </View>
       </View>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={st.scroll}
+        contentContainerStyle={[
+          st.scrollContent,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -259,51 +349,53 @@ const NotificationsScreen = () => {
             colors={[C.primary]}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
+        {/* Error */}
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>⚠️ {error}</Text>
-            <TouchableOpacity
-              onPress={fetchNotifications}
-              style={styles.retryBtn}
-            >
-              <Text style={styles.retryText}>Retry</Text>
+          <View style={st.errorBox}>
+            <Text style={st.errorText}>⚠️ {error}</Text>
+            <TouchableOpacity onPress={fetchNotifications} style={st.retryBtn}>
+              <Text style={st.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
 
+        {/* Empty */}
         {totalCount === 0 && !error && (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>🔕</Text>
-            <Text style={styles.emptyTitle}>No Notifications</Text>
-            <Text style={styles.emptySubtitle}>You're all caught up!</Text>
+          <View style={st.emptyBox}>
+            <Text style={st.emptyIcon}>🔕</Text>
+            <Text style={st.emptyTitle}>No Notifications</Text>
+            <Text style={st.emptySubtitle}>You're all caught up!</Text>
           </View>
         )}
 
+        {/* Admin notifications */}
         {adminNotifs.length > 0 && (
-          <View style={styles.section}>
+          <View style={st.section}>
             <SectionHeader
               icon="🏫"
               title="From College Admin"
               count={adminNotifs.length}
               color={C.primary}
             />
-            {adminNotifs.map((note) => (
-              <NotifCard key={note._id} note={note} />
+            {adminNotifs.map((note, i) => (
+              <NotifCard key={note._id || i} note={note} />
             ))}
           </View>
         )}
 
+        {/* Teacher notifications */}
         {teacherNotifs.length > 0 && (
-          <View style={styles.section}>
+          <View style={st.section}>
             <SectionHeader
               icon="👨‍🏫"
               title="From Teachers"
               count={teacherNotifs.length}
               color="#7c3aed"
             />
-            {teacherNotifs.map((note) => (
-              <NotifCard key={note._id} note={note} />
+            {teacherNotifs.map((note, i) => (
+              <NotifCard key={note._id || i} note={note} />
             ))}
           </View>
         )}
@@ -312,29 +404,28 @@ const NotificationsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: C.bg,
   },
   loadingText: { marginTop: 12, color: "#64748b", fontSize: 14 },
 
-  /* ── NAVY APP BAR ── */
+  // ✅ topBar — no StatusBar/Platform hacks, insets handle karato
   topBar: {
     backgroundColor: C.primary,
-    paddingTop:
-      Platform.OS === "ios" ? 44 : (StatusBar.currentHeight || 24) + 6,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    position: "relative",
-    overflow: "hidden",
+    paddingBottom: 14,
     borderRadius: 20,
     marginHorizontal: 8,
-    marginTop: Platform.OS === "ios" ? 8 : (StatusBar.currentHeight || 24) - 10,
+    marginTop: 8,
     marginBottom: 8,
+    overflow: "hidden",
+    position: "relative",
   },
   circle1: {
     position: "absolute",
@@ -389,7 +480,7 @@ const styles = StyleSheet.create({
   totalText: { color: C.white, fontSize: 12, fontWeight: "700" },
 
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 32 },
+  scrollContent: { padding: 16 },
 
   section: { marginBottom: 24 },
   sectionHeader: {
@@ -409,9 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 12,
     overflow: "hidden",
-    ...(Platform.OS === "web"
-      ? { boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }
-      : { elevation: 2 }),
+    elevation: 2,
   },
   urgentCard: { borderWidth: 1.5, borderColor: "#dc2626" },
   expiredCard: { opacity: 0.75 },
