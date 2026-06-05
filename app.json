@@ -13,8 +13,8 @@
     },
 
 
-    "privacyUrl": "https://your-college.com/privacy-policy",
-    "termsUrl": "https://your-college.com/terms",
+    "privacyUrl": "https://yourdomain.com/privacy-policy",
+    "termsUrl": "https://yourdomain.com/terms",
 
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -32,33 +32,12 @@
 
       "infoPlist": {
 
-        "ITSAppUsesNonExemptEncryption": false,
-
-
-        "NSCameraUsageDescription": "We need access to your camera to capture profile pictures.",
-        "NSPhotoLibraryUsageDescription": "We need access to your photos to upload profile pictures and documents.",
-        "NSPhotoLibraryAddOnlyUsageDescription": "We need permission to save photos from the app.",
-        "NSLocationWhenInUseUsageDescription": "We need your location to track campus-based attendance.",
-        "NSMicrophoneUsageDescription": "We need microphone access for video calls and recording.",
-
-
-        "NSAllowsArbitraryLoads": false,
-        "NSAllowsArbitraryLoadsInMedia": false,
-        "NSExceptionDomains": {
-          "your-college-api.com": {
-            "NSIncludesSubdomains": true,
-            "NSExceptionAllowsInsecureHTTPLoads": false,
-            "NSExceptionMinimumTLSVersion": "TLSv1.2"
-          }
-        }
+        "ITSAppUsesNonExemptEncryption": false
       },
 
 
       "entitlements": {
-        "keychain-access-groups": ["group.com.novaa.studentapp"],
-        "com.apple.developer.associated-domains": [
-          "applinks:your-college.com"
-        ]
+        "keychain-access-groups": ["group.com.novaa.studentapp"]
       }
     },
 
@@ -66,32 +45,16 @@
     "android": {
       "package": "com.novaa.studentapp",
       "versionCode": 1,
-      "minSdkVersion": 23,
-      "targetSdkVersion": 34,
-      "compileSdkVersion": 34,
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
 
-      "edgeToEdgeEnabled": true,
-
-
       "permissions": [
         "android.permission.INTERNET",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.POST_NOTIFICATIONS"
-      ],
-
-
-      "networkSecurityConfig": "android_network_security_config"
+      ]
     },
-
 
     "web": {
       "favicon": "./assets/favicon.png",
@@ -100,19 +63,6 @@
 
 
     "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos"
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
-        }
-      ],
       [
         "expo-notifications",
         {
@@ -132,8 +82,7 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 30000,
-      "url": "https://u.expo.dev/your-project-id"
+      "fallbackToCacheTimeout": 30000
     },
 
 
@@ -144,11 +93,9 @@
       "eas": {
         "projectId": "09524a52-2784-4a03-80cc-c4fbc955a66e"
       },
-      "apiUrl": "https://your-college-api.com",
+      "apiUrl": "https://your-api-domain.com/api",
       "appName": "Student App",
-      "supportEmail": "support@your-college.com",
-      "privacyPolicyUrl": "https://your-college.com/privacy-policy",
-      "termsUrl": "https://your-college.com/terms"
+      "supportEmail": "support@yourdomain.com"
     }
   }
 }

@@ -33,7 +33,9 @@ const login = async (credentials) => {
       res.data.token ||
       null;
 
-    console.log("Token found:", token ? "YES" : "NO"); // debug
+    if (__DEV__) {
+      console.log("Token found:", token ? "YES" : "NO"); // debug
+    }
 
     if (token) {
       await storage.setToken(token);
@@ -66,8 +68,10 @@ const login = async (credentials) => {
         name: profileData.name || null,
       });
     } catch (profileError) {
-      console.warn("[Auth] /auth/me failed, using login data");
-      setUser(userInfo); // login data वापर
+      if (__DEV__) {
+        console.warn("[Auth] /auth/me failed, using login data");
+      }
+      setUser(userInfo);
     }
 
     return { success: true, user: userInfo };
@@ -94,7 +98,6 @@ const login = async (credentials) => {
       try {
         await api.post("/auth/logout");
       } catch (logoutApiError) {
-        // Server logout fail हो सकता है, फिर भी local logout करो
         if (__DEV__) {
           console.warn("[Auth] Server logout failed, clearing local data");
         }
@@ -120,7 +123,6 @@ const login = async (credentials) => {
         console.error("[Auth] Logout error:", error);
       }
 
-      // Even on error, clear local state
       setUser(null);
       delete api.defaults.headers.common["Authorization"];
 

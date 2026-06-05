@@ -16,6 +16,8 @@ let AsyncStorage = null;
  * - Other data → AsyncStorage (can be device-specific)
  */
 
+const __DEV__ = process.env.NODE_ENV === "development";
+
 const storage = {
   /**
    * Token को SECURELY store करो (encrypted)
@@ -37,7 +39,7 @@ const storage = {
       await SecureStore.setItemAsync("authToken", value);
       return true;
     } catch (e) {
-      console.error("[Storage] Token save failed:", e);
+      if (__DEV__) console.error("[Storage] Token save failed:", e);
       return false;
     }
   },
@@ -57,7 +59,7 @@ const storage = {
 
       return await SecureStore.getItemAsync("authToken");
     } catch (e) {
-      console.error("[Storage] Token get failed:", e);
+      if (__DEV__) console.error("[Storage] Token get failed:", e);
       return null;
     }
   },
@@ -79,7 +81,7 @@ const storage = {
       await SecureStore.deleteItemAsync("authToken");
       return true;
     } catch (e) {
-      console.error("[Storage] Token delete failed:", e);
+      if (__DEV__) console.error("[Storage] Token delete failed:", e);
       return false;
     }
   },
@@ -99,7 +101,7 @@ const storage = {
 
       return AsyncStorage.setItem(key, value);
     } catch (e) {
-      console.error(`[Storage] setItem ${key} failed:`, e);
+      if (__DEV__) console.error(`[Storage] setItem ${key} failed:`, e);
       return false;
     }
   },
@@ -117,7 +119,7 @@ const storage = {
 
       return AsyncStorage.getItem(key);
     } catch (e) {
-      console.error(`[Storage] getItem ${key} failed:`, e);
+      if (__DEV__) console.error(`[Storage] getItem ${key} failed:`, e);
       return null;
     }
   },
@@ -136,7 +138,7 @@ const storage = {
 
       return AsyncStorage.removeItem(key);
     } catch (e) {
-      console.error(`[Storage] removeItem ${key} failed:`, e);
+      if (__DEV__) console.error(`[Storage] removeItem ${key} failed:`, e);
       return false;
     }
   },
@@ -164,7 +166,7 @@ const storage = {
 
       return true;
     } catch (e) {
-      console.error("[Storage] Clear failed:", e);
+      if (__DEV__) console.error("[Storage] Clear failed:", e);
       return false;
     }
   },
