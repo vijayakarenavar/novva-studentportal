@@ -1,73 +1,124 @@
 import axios from "axios";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import storage from "../utils/storage";
 
-// ─── BASE URL ─────────────────────────────────────────────────────────────────
-// Android Emulator  → 10.0.2.2  (PC का localhost)
-// iOS Simulator     → 127.0.0.1
-// Real Device       → PC चा actual IP (e.g. 192.168.1.5)
-// Web (Expo Web)    → localhost
-// ─────────────────────────────────────────────────────────────────────────────
+const API_BASE_URL =
+  Constants.expoConfig?.extra?.API_BASE_URL ||
+  "http://localhost:5000/api";
 
 const getBaseUrl = () => {
-  if (Platform.OS === "android") return "http://10.0.2.2:5000/api";
-  if (Platform.OS === "ios") return "http://127.0.0.1:5000/api";
-  return "http://localhost:5000/api"; // expo web
+  if (Platform.OS === "android" && __DEV__) {
+    return "http://10.0.2.2:5000/api";
+  }
+  return API_BASE_URL;
 };
-
-// ─── REAL DEVICE साठी ─────────────────────────────────────────────────────────
-// Windows: CMD → ipconfig → IPv4 Address बघा
-// खाली IP तुमचा टाका:
-// const BASE_URL = "http://192.168.1.5:5000/api";
-// ─────────────────────────────────────────────────────────────────────────────
 
 const BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // React Native मध्ये cookies नाही, token वापरतो
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// ─── REQUEST INTERCEPTOR ──────────────────────────────────────────────────────
-// प्रत्येक request ला token attach करतो
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await storage.getItem("authToken");
+      const token = await storage.getToken();
       if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
+        config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (e) {
-      // AsyncStorage error - ignore
+    } catch (err) {}
+
+    if (__DEV__) {
+      console.log(`[API] ${config.method?.toUpperCase()} → ${config.url}`);
     }
-    console.log(
-      `[API] ${config.method?.toUpperCase()} → ${config.baseURL}${config.url}`,
-    );
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
-// ─── RESPONSE INTERCEPTOR ─────────────────────────────────────────────────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      console.log(`[API SUCCESS] ${response.status} ← ${response.config.url}`);
+    }
+    return response;
+  },
   async (error) => {
     const status = error.response?.status;
-    const url = error.config?.url;
-    console.log(`[API ERROR] ${status} on ${url}`, error.message);
 
-    // 401 आला म्हणजे token expire - clear करा
-    if (status === 401 && url !== "/auth/login") {
-      await storage.removeItem("authToken");
-      delete api.defaults.headers.common["Authorization"];
+    if (__DEV__) {
+      console.log(`[API ERROR] ${status}`, error.message);
     }
 
-    return Promise.reject(error);
-  },
+    if (status === 401) {
+      try {
+        await storage.deleteToken();
+        delete api.defaults.headers.common["Authorization"];
+      } catch (e) {}
+    }
+
+    return Promise.reject({
+      status,
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        "Something went wrong",
+    });
+  }
 );
+
+export const apiClient = {
+  login: (email, password) =>
+    api.post("/auth/login", { email, password }),
+
+  register: (data) =>
+    api.post("/auth/register", data),
+
+  logout: () =>
+    api.post("/auth/logout"),
+
+  getProfile: () =>
+    api.get("/auth/me"),
+
+  updateProfile: (data) =>
+    api.put("/user/profile", data),
+
+  deleteAccount: () =>
+    api.delete("/user/account"),
+
+  getDashboard: () =>
+    api.get("/dashboard/student"),
+
+  getAttendance: () =>
+    api.get("/attendance/student"),
+
+  getStudentFees: () =>
+    api.get("/fees/student"),
+
+  getTimetable: () =>
+    api.get("/timetable/student"),
+
+  getNotifications: () =>
+    api.get("/notifications"),
+
+  markNotificationRead: (id) =>
+    api.put(`/notifications/${id}/read`),
+
+  uploadDocument: (formData) =>
+    api.post("/documents/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  getDocuments: () =>
+    api.get("/documents"),
+
+  downloadDocument: (id) =>
+    api.get(`/documents/${id}/download`),
+};
 
 export default api;
