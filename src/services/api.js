@@ -24,7 +24,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await storage.getItem("authToken");
+      const token = await storage.getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -47,9 +47,16 @@ api.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status;
+    const url = error.config?.url;
 
     if (__DEV__) {
       console.log(`[API ERROR] ${status}`, error.message);
+    }
+
+    // Clear token on 401 (except login endpoint)
+    if (status === 401 && url !== "/auth/login") {
+      await storage.deleteToken();
+      delete api.defaults.headers.common["Authorization"];
     }
 
     return Promise.reject({
