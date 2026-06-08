@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 // ✅ Screen imports
 import LoginScreen from "../screens/auth/LoginScreen";
+import ForgotPasswordScreen from "../screens/auth/ForgotPasswordScreen";
 import HomeScreen from "../screens/home/HomeScreen";
 import TimetableScreen from "../screens/timetable/TimetableScreen";
 import NotificationsScreen from "../screens/notifications/NotificationsScreen";
@@ -13,6 +14,10 @@ import ProfileScreen from "../screens/profile/ProfileScreen";
 import AttendanceScreen from "../screens/attendance/AttendanceScreen";
 import FeesScreen from "../screens/fees/StudentFees";
 import EditProfileScreen from "../screens/profile/EditProfileScreen";
+import MakePaymentScreen from "../screens/fees/MakePayment"; // ✅ ADDED
+import PaymentSuccessScreen from "../screens/fees/PaymentSuccess"; // ✅ ADDED
+import PaymentCancelScreen from "../screens/fees/PaymentCancel"; // ✅ ADDED
+import FeeReceiptScreen from "../screens/fees/FeeReceipt"; // ✅ ADDED
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -20,11 +25,7 @@ const Tab = createBottomTabNavigator();
 // ✅ Tab Icon Component
 const TabIcon = ({ icon, label, focused }) => (
   <View
-    style={{
-      alignItems: "center",
-      justifyContent: "center",
-      paddingTop: 6,
-    }}
+    style={{ alignItems: "center", justifyContent: "center", paddingTop: 6 }}
   >
     <Text style={{ fontSize: 22, marginBottom: 2 }}>{icon}</Text>
     <Text
@@ -50,7 +51,7 @@ const TabIcon = ({ icon, label, focused }) => (
   </View>
 );
 
-// ✅ Tab Navigator - Notifications/Alerts tab REMOVED
+// ✅ Tab Navigator
 const TabNavigator = () => {
   return (
     <Tab.Navigator
@@ -75,7 +76,6 @@ const TabNavigator = () => {
         },
       }}
     >
-      {/* ✅ Home */}
       <Tab.Screen
         name="Home"
         component={HomeScreen}
@@ -85,8 +85,6 @@ const TabNavigator = () => {
           ),
         }}
       />
-
-      {/* ✅ Timetable */}
       <Tab.Screen
         name="Timetable"
         component={TimetableScreen}
@@ -96,8 +94,6 @@ const TabNavigator = () => {
           ),
         }}
       />
-
-      {/* ✅ Profile */}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -153,15 +149,43 @@ const AppNavigator = () => {
             component={EditProfileScreen}
             options={{ presentation: "card" }}
           />
-          {/* ✅ Notifications stack screen ठेवला (HomeScreen bell icon साठी) */}
           <Stack.Screen
             name="Notifications"
             component={NotificationsScreen}
             options={{ presentation: "card" }}
           />
+
+          {/* ✅ Payment Screens */}
+          <Stack.Screen
+            name="MakePayment"
+            component={MakePaymentScreen}
+            options={{ presentation: "card" }}
+          />
+          <Stack.Screen
+            name="PaymentSuccess"
+            component={PaymentSuccessScreen}
+            options={{ presentation: "card", gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="PaymentCancel"
+            component={PaymentCancelScreen}
+            options={{ presentation: "card" }}
+          />
+          <Stack.Screen
+            name="FeeReceipt"
+            component={FeeReceiptScreen}
+            options={{ presentation: "card" }}
+          />
         </>
       ) : (
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ presentation: "card" }}
+          />
+        </>
       )}
     </Stack.Navigator>
   );
