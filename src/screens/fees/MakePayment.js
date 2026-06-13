@@ -16,6 +16,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome } from "@expo/vector-icons";
 import api from "../../services/api";
+import RazorpayCheckout from "react-native-razorpay";
 
 // ─── COLORS ──────────────────────────────────────────────────────────────────
 const C = {
@@ -135,7 +136,7 @@ const MakePayment = () => {
       // React Native Razorpay integration
       // Install: npm install react-native-razorpay
       // Then import RazorpayCheckout from 'react-native-razorpay';
-      const RazorpayCheckout = require("react-native-razorpay").default;
+      //const RazorpayCheckout = require("react-native-razorpay").default;
 
       const options = {
         description: `Fee Payment - ${installmentName}`,

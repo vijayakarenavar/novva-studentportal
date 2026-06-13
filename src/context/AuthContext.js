@@ -11,86 +11,83 @@ import api from "../services/api";
 
 const AuthContext = createContext(null);
 
-const __DEV__ = process.env.NODE_ENV === "development";
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // 🔐 LOGIN
-const login = async (credentials) => {
-  try {
-    setError(null);
-
-    const res = await api.post("/auth/login", credentials);
-
-    // ✅ FIXED: token extract
-    const token =
-      res.data.data?.accessToken ||
-      res.data.data?.token ||
-      res.data.accessToken ||
-      res.data.token ||
-      null;
-
-    if (__DEV__) {
-      console.log("Token found:", token ? "YES" : "NO"); // debug
-    }
-
-    if (token) {
-      await storage.setToken(token);
-
-      // ✅ IMPORTANT: defaults आधी set कर, मग /auth/me call कर
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      throw new Error("No token received from server");
-    }
-
-    // User info - response वरून
-    const userData = res.data.data?.user || res.data.user || {};
-    const userInfo = {
-      id: userData.id,
-      role: userData.role,
-      college_id: userData.college_id,
-      email: userData.email || null,
-      name: userData.name || null,
-    };
-
-    // /auth/me try कर
+  const login = async (credentials) => {
     try {
-      const profileRes = await api.get("/auth/me");
-      const profileData = profileRes.data.data || profileRes.data;
-      setUser({
-        id: profileData.id,
-        role: profileData.role,
-        college_id: profileData.college_id || null,
-        email: profileData.email || null,
-        name: profileData.name || null,
-      });
-    } catch (profileError) {
+      setError(null);
+
+      const res = await api.post("/auth/login", credentials);
+
+      // ✅ FIXED: token extract
+      const token =
+        res.data.data?.accessToken ||
+        res.data.data?.token ||
+        res.data.accessToken ||
+        res.data.token ||
+        null;
+
       if (__DEV__) {
-        console.warn("[Auth] /auth/me failed, using login data");
+        console.log("Token found:", token ? "YES" : "NO"); // debug
       }
-      setUser(userInfo);
+
+      if (token) {
+        await storage.setToken(token);
+
+        // ✅ IMPORTANT: defaults आधी set कर, मग /auth/me call कर
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      } else {
+        throw new Error("No token received from server");
+      }
+
+      // User info - response वरून
+      const userData = res.data.data?.user || res.data.user || {};
+      const userInfo = {
+        id: userData.id,
+        role: userData.role,
+        college_id: userData.college_id,
+        email: userData.email || null,
+        name: userData.name || null,
+      };
+
+      // /auth/me try कर
+      try {
+        const profileRes = await api.get("/auth/me");
+        const profileData = profileRes.data.data || profileRes.data;
+        setUser({
+          id: profileData.id,
+          role: profileData.role,
+          college_id: profileData.college_id || null,
+          email: profileData.email || null,
+          name: profileData.name || null,
+        });
+      } catch (profileError) {
+        if (__DEV__) {
+          console.warn("[Auth] /auth/me failed, using login data");
+        }
+        setUser(userInfo);
+      }
+
+      return { success: true, user: userInfo };
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        error.message ||
+        "Login failed";
+
+      setError(errorMessage);
+      return {
+        success: false,
+        message: errorMessage,
+        code: error?.response?.data?.code || null,
+      };
     }
-
-    return { success: true, user: userInfo };
-
-  } catch (error) {
-    const errorMessage =
-      error?.response?.data?.message ||
-      error?.response?.data?.error?.message ||
-      error.message ||
-      "Login failed";
-
-    setError(errorMessage);
-    return {
-      success: false,
-      message: errorMessage,
-      code: error?.response?.data?.code || null,
-    };
-  }
-};
+  };
   // 🚪 LOGOUT
   const logout = async () => {
     try {
@@ -173,7 +170,10 @@ const login = async (credentials) => {
             } else {
               // Network error या अन्य issue
               if (__DEV__) {
-                console.error("[Auth] Verification error:", verifyError.message);
+                console.error(
+                  "[Auth] Verification error:",
+                  verifyError.message,
+                );
               }
 
               // Network error पर भी logged out नहीं करते (retry करने दो)
@@ -214,11 +214,7 @@ const login = async (credentials) => {
     isAuthenticated: Boolean(user),
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

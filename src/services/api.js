@@ -2,12 +2,13 @@ import axios from "axios";
 import { Platform } from "react-native";
 import storage from "../utils/storage";
 
-const __DEV__ = process.env.NODE_ENV === "development";
-
 const getBaseUrl = () => {
-  if (Platform.OS === "android") return "http://10.0.2.2:5000/api";
-  if (Platform.OS === "ios") return "http://127.0.0.1:5000/api";
-  return "http://localhost:5000/api";
+  if (__DEV__) {
+    if (Platform.OS === "android") return "http://10.0.2.2:5000/api";
+    if (Platform.OS === "ios") return "http://127.0.0.1:5000/api";
+    return "http://localhost:5000/api";
+  }
+  return "https://edu-novaa.in/api";
 };
 
 const BASE_URL = getBaseUrl();
@@ -35,7 +36,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -66,7 +67,7 @@ api.interceptors.response.use(
         error.message ||
         "Something went wrong",
     });
-  }
+  },
 );
 
 export default api;

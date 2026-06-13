@@ -7,41 +7,26 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "runtimeVersion": {
       "policy": "appVersion"
     },
-
-
-    "privacyUrl": "https://yourdomain.com/privacy-policy",
-    "termsUrl": "https://yourdomain.com/terms",
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.novaa.studentapp",
       "buildNumber": "1",
-      "deploymentTarget": "13.0",
-
-
       "infoPlist": {
-
         "ITSAppUsesNonExemptEncryption": false
       },
-
-
       "entitlements": {
         "keychain-access-groups": ["group.com.novaa.studentapp"]
       }
     },
-
-
     "android": {
       "package": "com.novaa.studentapp",
       "versionCode": 1,
@@ -49,19 +34,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.POST_NOTIFICATIONS"
       ]
     },
-
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-
-
     "plugins": [
       [
         "expo-notifications",
@@ -75,25 +56,19 @@
         {
           "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for authentication"
         }
-      ]
+      ],
+      "expo-font"
     ],
-
-
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 30000
     },
-
-
-    "projectId": "09524a52-2784-4a03-80cc-c4fbc955a66e",
-
-
     "extra": {
       "eas": {
         "projectId": "09524a52-2784-4a03-80cc-c4fbc955a66e"
       },
-      "apiUrl": "https://your-api-domain.com/api",
+      "apiUrl": "https://edu-novaa.in/api",
       "appName": "Student App",
       "supportEmail": "support@yourdomain.com"
     }
