@@ -44,7 +44,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "react-native-razorpay",
       [
         "expo-notifications",
         {
