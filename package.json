@@ -31,5 +31,14 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.0"
   },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-razorpay"
+        ]
+      }
+    }
+  },
   "private": true
 }
