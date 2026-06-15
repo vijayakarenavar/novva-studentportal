@@ -801,7 +801,7 @@ const ir = StyleSheet.create({
 function DocCard({ icon, type, name, board, year, percentage, filePath, rs }) {
   const hasFile =
     filePath && String(filePath).trim() !== "" && filePath !== "null";
-  const baseUrl = "http://localhost:5000";
+  const baseUrl = "https://edu-novaa.in";
   const handleView = () => {
     if (!hasFile) {
       Alert.alert("Not Available", "Document not uploaded yet.");

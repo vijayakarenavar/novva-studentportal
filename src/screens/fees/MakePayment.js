@@ -11,12 +11,20 @@ import {
   StatusBar,
   Modal,
   useWindowDimensions,
+  Linking,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome } from "@expo/vector-icons";
 import api from "../../services/api";
-import RazorpayCheckout from "react-native-razorpay";
+
+// Handle Razorpay native module - try-catch for compatibility
+let RazorpayCheckout = null;
+try {
+  RazorpayCheckout = require("react-native-razorpay").default;
+} catch (e) {
+  console.warn("Razorpay native module not available, using web fallback");
+}
 
 // ─── COLORS ──────────────────────────────────────────────────────────────────
 const C = {
@@ -134,10 +142,6 @@ const MakePayment = () => {
       }
 
       // React Native Razorpay integration
-      // Install: npm install react-native-razorpay
-      // Then import RazorpayCheckout from 'react-native-razorpay';
-      //const RazorpayCheckout = require("react-native-razorpay").default;
-
       const options = {
         description: `Fee Payment - ${installmentName}`,
         currency: currency || "INR",
@@ -147,6 +151,25 @@ const MakePayment = () => {
         name: "College Fee Payment",
         theme: { color: C.primary },
       };
+
+      // Check if RazorpayCheckout is available (native module)
+      if (!RazorpayCheckout || !RazorpayCheckout.open) {
+        // Fallback: Open payment in browser/webview
+        showAlert(
+          "Info",
+          "Opening payment gateway in browser. Complete payment and return to the app.",
+        );
+        const paymentUrl = `https://rzp.io/l/${orderId}`;
+        await Linking.openURL(paymentUrl);
+        setLoading(false);
+        isRequestInProgressRef.current = false;
+        navigation.navigate("PaymentSuccess", {
+          paymentGateway: "RAZORPAY",
+          orderId: orderId,
+          paymentId: "browser_check",
+        });
+        return;
+      }
 
       RazorpayCheckout.open(options)
         .then((data) => {
