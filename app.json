@@ -1,0 +1,63 @@
+﻿{
+  "expo": {
+    "name": "Student App",
+    "slug": "student-app",
+    "version": "1.0.0",
+    "scheme": "studentapp",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "runtimeVersion": "1.0.0",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.novaa.studentapp",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "keychain-access-groups": ["group.com.novaa.studentapp"]
+      }
+    },
+    "android": {
+      "package": "com.novaa.studentapp",
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for authentication"
+        }
+      ]
+    ],
+    "updates": {
+      "enabled": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "09524a52-2784-4a03-80cc-c4fbc955a66e"
+      },
+      "apiUrl": "https://edu-novaa.in/api",
+      "appName": "Student App",
+      "supportEmail": "support@yourdomain.com"
+    }
+  }
+}
