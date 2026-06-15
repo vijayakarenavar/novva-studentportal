@@ -26,11 +26,5 @@
         "buildType": "app-bundle"
       }
     }
-  },
-  "submit": {
-    "production": {
-      "serviceAccountKeyPath": "./google-services.json",
-      "track": "internal"
-    }
   }
 }
