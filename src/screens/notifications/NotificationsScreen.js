@@ -265,17 +265,12 @@ const NotificationsScreen = () => {
             bestTeacher = teacherList;
           }
         } catch (e) {
-          console.log(`[${endpoint}] failed:`, e.message);
         }
       }
 
-      console.log(
-        `✅ Final — Admin: ${bestAdmin.length}, Teacher: ${bestTeacher.length}`,
-      );
       setAdminNotifs(bestAdmin);
       setTeacherNotifs(bestTeacher);
     } catch (err) {
-      console.error("Notifications fetch error:", err.message);
       setError("Failed to load notifications");
     } finally {
       setLoading(false);

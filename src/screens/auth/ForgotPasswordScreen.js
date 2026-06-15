@@ -30,7 +30,13 @@ const ForgotPasswordScreen = ({ navigation }) => {
       Alert.alert('Success', 'OTP sent to your email', [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('OTPVerify', { email }),
+          onPress: () => {
+            try {
+              navigation.navigate('OTPVerify', { email });
+            } catch (e) {
+              Alert.alert('Error', 'Navigation failed. Please go back and try again.');
+            }
+          },
         },
       ]);
     } catch (error) {

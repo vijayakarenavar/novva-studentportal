@@ -11,6 +11,7 @@ import {
   ScrollView,
   Animated,
   useWindowDimensions,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -70,7 +71,11 @@ const LoginScreen = ({ navigation }) => {
       const result = await login({ email, password });
       if (!result.success) {
         if (result.code === "MUST_CHANGE_PASSWORD") {
-          navigation.navigate("ChangePassword");
+          try {
+            navigation.navigate("ChangePassword");
+          } catch (e) {
+            setError("Navigation to Change Password screen failed. Please contact support.");
+          }
           return;
         }
         const msg = result.message || "Invalid credentials";

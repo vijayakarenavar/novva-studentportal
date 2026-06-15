@@ -23,7 +23,9 @@ let RazorpayCheckout = null;
 try {
   RazorpayCheckout = require("react-native-razorpay").default;
 } catch (e) {
-  console.warn("Razorpay native module not available, using web fallback");
+  if (__DEV__) {
+    console.warn("Razorpay native module not available, using web fallback");
+  }
 }
 
 // ─── COLORS ──────────────────────────────────────────────────────────────────

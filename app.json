@@ -27,14 +27,12 @@
     },
     "android": {
       "package": "com.novaa.studentapp",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "android.permission.INTERNET"
-      ]
+      "permissions": ["android.permission.INTERNET"]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -57,7 +55,9 @@
       },
       "apiUrl": "https://edu-novaa.in/api",
       "appName": "Student App",
-      "supportEmail": "support@yourdomain.com"
+      "supportEmail": "support@yourdomain.com",
+      "privacyPolicyUrl": "https://edu-novaa.in/privacy",
+      "termsOfServiceUrl": "https://edu-novaa.in/terms"
     }
   }
 }

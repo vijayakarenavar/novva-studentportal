@@ -157,26 +157,32 @@ export const AuthProvider = ({ children }) => {
               console.log("[Auth] Token verified, user restored");
             }
           } catch (verifyError) {
-            // Token invalid है
-            if (verifyError.status === 401) {
+            const isNetworkError =
+              !verifyError.response &&
+              (verifyError.code === "ECONNABORTED" ||
+                verifyError.code === "ENOTFOUND" ||
+                verifyError.code === "ETIMEDOUT" ||
+                verifyError.message?.includes("Network Error"));
+
+            if (verifyError.response?.status === 401) {
               if (__DEV__) {
                 console.log("[Auth] Token invalid/expired, clearing");
               }
 
-              // Invalid token को clear करो
               await storage.deleteToken();
               delete api.defaults.headers.common["Authorization"];
               setUser(null);
+            } else if (isNetworkError) {
+              if (__DEV__) {
+                console.warn("[Auth] Network error during verification, keeping user logged in");
+              }
             } else {
-              // Network error या अन्य issue
               if (__DEV__) {
                 console.error(
                   "[Auth] Verification error:",
                   verifyError.message,
                 );
               }
-
-              // Network error पर भी logged out नहीं करते (retry करने दो)
               setUser(null);
             }
           }

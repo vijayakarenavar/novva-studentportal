@@ -8,6 +8,7 @@ import {
   Platform,
   StatusBar,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -154,7 +155,13 @@ const PaymentCancel = () => {
 
             <TouchableOpacity
               style={styles.helpBtn}
-              onPress={() => navigation.navigate("Support")}
+              onPress={() => {
+                try {
+                  navigation.navigate("Profile");
+                } catch (e) {
+                  Alert.alert("Info", "Please contact your college administrator for support.");
+                }
+              }}
               activeOpacity={0.85}
             >
               <Text style={styles.helpBtnText}>Need Help?</Text>

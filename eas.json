@@ -7,25 +7,30 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "env": {
+        "NODE_ENV": "development"
       }
     },
     "preview": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "env": {
+        "NODE_ENV": "staging"
       }
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "NODE_ENV": "production"
+      },
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "serviceAccountKeyPath": "./google-services.json",
+      "track": "internal"
+    }
   }
 }
