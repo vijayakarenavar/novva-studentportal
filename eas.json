@@ -20,12 +20,8 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "appBundle",
-        "gradleCommand": ":app:assembleRelease",
-        "permissions": [
-          "android.permission.INTERNET",
-          "android.permission.ACCESS_NETWORK_STATE"
-        ]
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:assembleRelease"
       }
     }
   },
